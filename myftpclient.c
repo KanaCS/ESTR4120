@@ -28,7 +28,7 @@ void list(int sd){
 	}
 	printf("list request\n");
 
-	buff = malloc(sizeof(char)*1024); //dynamic stack alloc later recv(len);->malloc(sizeof(char)*len)
+	buff = malloc(sizeof(char)*1024); 
 	memset(buff, '\0', sizeof(char)*1024);
 
 	if((len=recvn(sd,buff,sizeof(buff)))<0){
