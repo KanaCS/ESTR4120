@@ -107,6 +107,68 @@ void put(int sd, char *filename){
 
 }
 
+void get(int sd, char* file_name) {
+	struct message_s GET_REQUEST; //to server
+
+	strcpy(GET_REQUEST.protocol,"myftp");
+	GET_REQUEST.type = 0xB1;
+	GET_REQUEST.length = 10;
+	int file_name_len = strlen(file_name);
+	char *buff = malloc(sizeof(char)*(10 + file_name_len + 1));
+	int len=0;
+
+	memcpy(buff, &GET_REQUEST, 10);
+	memcpy(&buff[10], (void *)file_name, file_name_len + 1);
+	if( (len=sendn(sd, (void *)buff, 10 + file_name_len + 1) ) < 0 ) {
+		printf("Send Error: %s (Errno:%d)\n",strerror(errno),errno); exit(0);
+	}
+	free(buff);
+
+	struct message_s GET_REPLY; //from server
+	buff = malloc(sizeof(char) * 10);
+	if( (len=recvn(sd, (void *)buff, 10) ) < 0 ) {
+		printf("Send Error: %s (Errno:%d)\n",strerror(errno),errno); exit(0);
+	}
+	memcpy(&GET_REPLY, buff, 10);
+	// if(len != GET_REPLY.length) {
+	// 	printf("Recv Error: expect %d, recv %d\n", GET_REPLY.length, len); exit(0);
+	// }
+	
+	free(buff);
+	if(GET_REPLY.type == 0xB2) {
+		struct message_s FILE_DATA;
+		buff = malloc(sizeof(char) * BATCH_SIZE);
+		unsigned int file_data_len = 0;
+		char *file_path = malloc(sizeof(char) * (DPATH_LEN + file_name_len));
+		memcpy(file_path, DPATH, DPATH_LEN);
+		memcpy(&file_path[DPATH_LEN], file_name, file_name_len);
+		FILE *fp = fopen(file_path, "w");
+		unsigned long long dl = 0;
+		while(1) {
+			if( (len=recvn(sd, (void *)buff, 10) ) < 0 ) {
+				printf("Send Error: %s (Errno:%d)\n",strerror(errno),errno); exit(0);
+			}
+			memcpy(&FILE_DATA, buff, 10);
+			file_data_len = FILE_DATA.length - 10;
+			if(file_data_len == 0) {
+				break;
+			}
+			if( (len=recvn(sd, (void *)buff, file_data_len) ) < 0 ) {
+				printf("Send Error: %s (Errno:%d)\n",strerror(errno),errno); exit(0);
+			}
+			dl += fwrite(buff, 1, len, fp);
+			printf("Download %llu\n", dl);
+		}
+		fclose(fp);
+		free(buff);
+		free(file_path);
+	}
+	else {
+		perror("File not found\n");
+		exit(1);
+	}
+}
+
 void main_task(in_addr_t ip, unsigned short port, char* op, char* filename)
 {
 	int buf;
@@ -137,7 +199,7 @@ void main_task(in_addr_t ip, unsigned short port, char* op, char* filename)
 		list(fd);
 	}
 	else if(strcmp(op,"get")==0){
-
+		get(fd, filename);
 	}
 	else if(strcmp(op,"put")==0){
 		put(fd, filename);
