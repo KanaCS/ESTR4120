@@ -13,8 +13,9 @@
 #include <pthread.h>
 #include "myftp.h"
 
-void list(void *sd){
-	int len=0, payload=0, *fd=(int*)sd;
+#define DPATH "data/"
+void list(int sd){
+	int len=0, payload=1;//, *fd=(int*)sd;
 	DIR *dir1;
 	struct dirent *ptr;
 	struct message_s LIST_REQUEST;
@@ -37,9 +38,85 @@ void list(void *sd){
 	LIST_REQUEST.length = 10; // (Oscar) I think your LIST_REPLY here should have length = 10 + payload
 	memcpy(buff, &LIST_REQUEST, 10);
 
-	if((len=sendn(*fd,(void*)buff,sizeof(buff)))<0){
+	if((len=sendn(sd,(void*)buff,sizeof(buff)))<0){
 		printf("Send Error: %s (Errno:%d)\n",strerror(errno),errno);
 		exit(0);
+	}
+	close(sd);
+}
+
+void get(int sd, char *file_name) {
+	DIR *dir1;
+	dir1 = opendir(DPATH);
+	struct dirent *ptr_dirent;
+	int file_found = 0;
+	while((ptr_dirent= readdir(DPATH)) != NULL) {
+		if(strcmp(ptr_dirent->d_name, file_name) == 0) {
+			file_found = 1;
+			break;
+		}
+	}
+	if(file_found == 0) { // file not found
+		// GET_REPLY
+		struct message_s GET_REPLY;
+		strcpy(GET_REPLY.protocol,"myftp");
+		GET_REPLY.type = 0xB3;
+		GET_REPLY.length = 10;
+
+		char *buff = malloc(sizeof(char) * 10);
+		memcpy(buff, &GET_REPLY, 10);
+		int len = 0;
+		if((len=sendn(sd,(void*)buff,sizeof(buff)))<0){
+			printf("Send Error: %s (Errno:%d)\n",strerror(errno),errno);
+			exit(0);
+		}
+		free(buff);
+	}
+	else { // file found, send GET_REPLY and send file
+		// GET_REPLY
+		int len = 0;
+		struct message_s GET_REPLY; strcpy(GET_REPLY.protocol,"myftp"); GET_REPLY.type = 0xB2; GET_REPLY.length = 10;
+		char *buff = malloc(sizeof(char) * 10); 
+		memcpy(buff, &GET_REPLY, 10);
+		if( (len = sendn(sd, (void *)buff, sizeof(buff))) < 0) {
+			printf("Send Error: %s (Errno:%d)\n",strerror(errno),errno);
+			exit(0);
+		}
+		free(buff);
+		// FILE_DATA
+
+		char *file_path = malloc(sizeof(char) *(strlen(DPATH) + strlen(file_name)));
+		strcpy(file_path, DPATH);
+		strcpy(&file_path[strlen(DPATH)], file_name);
+		FILE *fd = fopen(file_path, "r");
+
+		fseek(fd, 0, SEEK_END);
+		unsigned long long file_len = ftell(fd);
+		fseek(fd, 0, SEEK_SET);
+
+		int s = 0;
+		buff = malloc(sizeof(char)* (BATCH_SIZE + 10));
+		unsigned long long req_batch = file_len / BATCH_SIZE, i = 0;
+
+		struct message_s FILE_DATA; strcpy(FILE_DATA.protocol,"myftp"); FILE_DATA.type = 0xFF; 
+		for(i = 0; i < req_batch; i++) {
+			s = fread(&buff[10], BATCH_SIZE, 1, fd);
+			FILE_DATA.length = s+10;
+			memcpy(buff, &FILE_DATA, 10);
+			if( (len = sendn(sd, (void *)buff, s+10)) < 0) {
+				printf("Send Error: %s (Errno:%d)\n",strerror(errno),errno);
+				exit(0);
+			}
+		}
+		FILE_DATA.length = 10;
+		memcpy(buff, &FILE_DATA, 10);
+		if( (len = sendn(sd, (void *)buff, 10)) < 0) {
+			printf("Send Error: %s (Errno:%d)\n",strerror(errno),errno);
+			exit(0);
+		}
+		free(file_path);
+		fclose(fd);
+		free(buff);
 	}
 }
 
@@ -118,25 +195,37 @@ void get(int sd, char *file_name) {
 	}
 }
 void *option(void *sd){
-	int len=0, *fd; 
-	char buff[1024];
+
+	int len=0, *fd;
+
+	char buff[11];
 	struct message_s REQUEST;
 	fd=(int*)sd;
-	if((len=recvn(*fd,buff,sizeof(buff)))<0){
+	//printf("fd = %d\n",*fd);
+	if((len=recv(*fd,buff,sizeof(buff),0))<0){
 		printf("receive error: %s (Errno:%d)\n", strerror(errno),errno);
 		exit(0);
 	}
-	memcpy(&REQUEST, buff, 10); 
-	if(strcmp(REQUEST.protocol,"myftp") == 0 && REQUEST.type == 0xA1 && REQUEST.length == len){ //list
-		list(sd);
-	}
-	else if(strcmp(*REQUEST.protocol,"myftp") == 0 && REQUEST.type == 0xB1 && REQUEST.length == len){//get
-		char *file_name = malloc(sizeof(char)* len - 10);
+	//printf("\nbuff: %s\n\n",buff);
+	memcpy(&REQUEST, buff, 10);
 
+	// printf("heyyyyy???\n");
+	// printf("REQUEST.protocol:%s   %d\n",REQUEST.protocol,strcmp(REQUEST.protocol,"myftp") == 0);
+	// printf("REQUEST.type: %d\n",REQUEST.type==0xA1);
+	// printf("REQUEST.length:%d\n",REQUEST.length==len);
+	if(REQUEST.protocol[0]!='m' || REQUEST.protocol[1]!='y'|| REQUEST.protocol[2]!='f' && REQUEST.protocol[3]!='t' && REQUEST.protocol[4]!='p'){
+		perror("server request failure\n");
+		exit(1);	
+	}
+	if(REQUEST.type == 0xA1 && REQUEST.length == len){ //list
+		list(*fd);
+	}
+	else if(REQUEST.type == 0xB1 && REQUEST.length == len){//get
+		char *file_name = malloc(sizeof(char)* len - 10);
 		get(*(int*)sd, file_name);
 		free(file_name);
 	}
-	else if(strcmp(*REQUEST.protocol,"myftp") == 0 && REQUEST.type == 0xC1 && REQUEST.length == len){//put
+	else if(REQUEST.type == 0xC1 && REQUEST.length == len){//put
 		//put(sd);
 	}
 	else{
@@ -144,6 +233,7 @@ void *option(void *sd){
 		exit(1);
 	}
 	pthread_exit(NULL);
+
 }
 
 void main_loop(unsigned short port)
@@ -193,7 +283,7 @@ void main_loop(unsigned short port)
 			perror("accept()");
 			exit(1);
 		}
-
+		printf("accept_fd = %d\n",accept_fd);
 		client_count++;
 
 		if (pthread_create(&thread, NULL, option, &accept_fd)) { 
@@ -201,8 +291,7 @@ void main_loop(unsigned short port)
 			exit(1);
 		}
 
-		close(accept_fd);	// Time to shut up.
-
+		//close(fd);	// Time to shut up.
 	}	// End of infinite, accepting loop.
 }
 
