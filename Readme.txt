@@ -1,3 +1,5 @@
+update: can run sucessfully on "list"
+
 - This program should be running on Linux, not Unix.
 
 - Run "make" to compile.
