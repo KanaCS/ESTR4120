@@ -8,6 +8,9 @@ int sendn(int sd, void *buf, int buf_len);
 
 int recvn(int sd, void *buf, int buf_len);
 
-#define BATCH_SIZE 16384 // 2KB
+void print_message(struct message_s m) {
+	printf("Message: %s, type: %#02X, length: %u\n", m.protocol, m.type, m.length);
+}
+#define BATCH_SIZE 2048 // 2KB
 #define DPATH "data/"
 #define DPATH_LEN 5

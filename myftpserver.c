@@ -75,10 +75,10 @@ void get(int sd, char *file_name) {
 	else { // file found, send GET_REPLY and send file
 		// GET_REPLY
 		int len = 0;
-		struct message_s GET_REPLY; strcpy(GET_REPLY.protocol,"myftp"); GET_REPLY.type = 0xB2; GET_REPLY.length = 10;
+		struct message_s GET_REPLY; memcpy(GET_REPLY.protocol,"myftp", 5); GET_REPLY.type = 0xB2; GET_REPLY.length = 10;
 		char *buff = malloc(sizeof(char) * 10); 
 		memcpy(buff, &GET_REPLY, 10);
-		if( (len = sendn(sd, (void *)buff, sizeof(buff))) < 0) {
+		if( (len = sendn(sd, (void *)buff, 10)) < 0) {
 			printf("Send Error: %s (Errno:%d)\n",strerror(errno),errno);
 			exit(0);
 		}
@@ -96,11 +96,10 @@ void get(int sd, char *file_name) {
 
 		int s = 0;
 		buff = malloc(sizeof(char)* (BATCH_SIZE + 10));
-		unsigned long long req_batch = file_len / BATCH_SIZE, i = 0;
-
+		unsigned long long req_batch = file_len / BATCH_SIZE + 1, i = 0;
 		struct message_s FILE_DATA; strcpy(FILE_DATA.protocol,"myftp"); FILE_DATA.type = 0xFF; 
 		for(i = 0; i < req_batch; i++) {
-			s = fread(&buff[10], BATCH_SIZE, 1, fd);
+			s = fread(&buff[10], 1, BATCH_SIZE, fd);
 			FILE_DATA.length = s+10;
 			memcpy(buff, &FILE_DATA, 10);
 			if( (len = sendn(sd, (void *)buff, s+10)) < 0) {
@@ -125,15 +124,21 @@ void *option(void *sd){
 	int len=0, *fd;
 
 	char buff[11];
+	char *pl_buff;
 	struct message_s REQUEST;
 	fd=(int*)sd;
 	//printf("fd = %d\n",*fd);
-	if((len=recv(*fd,buff,sizeof(buff),0))<0){
-		printf("receive error: %s (Errno:%d)\n", strerror(errno),errno);
-		exit(0);
+	if((len=recvn(*(int*)sd,buff, 10))<0){
+		printf("receive error: %s (Errno:%d)\n", strerror(errno),errno); exit(0);
+	}
+	memcpy(&REQUEST, buff, 10);
+	if(REQUEST.length > 10) {
+		pl_buff = malloc(sizeof(char) * (REQUEST.length-10));
+	}
+	if((len=recvn(*(int*)sd, pl_buff, REQUEST.length-10))<0){
+		printf("receive error: %s (Errno:%d)\n", strerror(errno),errno); exit(0);
 	}
 	//printf("\nbuff: %s\n\n",buff);
-	memcpy(&REQUEST, buff, 10);
 
 	// printf("heyyyyy???\n");
 	// printf("REQUEST.protocol:%s   %d\n",REQUEST.protocol,strcmp(REQUEST.protocol,"myftp") == 0);
@@ -146,10 +151,8 @@ void *option(void *sd){
 	if(REQUEST.type == 0xA1 && REQUEST.length == len){ //list
 		list(*fd);
 	}
-	else if(REQUEST.type == 0xB1 && REQUEST.length == len){//get
-		char *file_name = malloc(sizeof(char)* len - 10);
-		get(*(int*)sd, file_name);
-		free(file_name);
+	else if(REQUEST.type == 0xB1){//get
+		get(*(int*)sd, pl_buff);
 	}
 	else if(REQUEST.type == 0xC1 && REQUEST.length == len){//put
 		//put(sd);
@@ -158,6 +161,7 @@ void *option(void *sd){
 		perror("server request failure\n");
 		exit(1);
 	}
+	free(pl_buff);
 	pthread_exit(NULL);
 
 }

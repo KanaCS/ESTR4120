@@ -28,7 +28,7 @@ void list(int sd){
 	//printf("list request\n");
 
 	buff = malloc(sizeof(char)*1024); //a block size of 1024, transmit data per block of 1024
-	memset(buff, '\0', sizeof(buf));
+	memset(buff, '\0', sizeof(buff));
 
 	if((len=recvn(sd,buff,sizeof(buff)))<0){ //recv LIST_REPLY
 		printf("receive error: %s (Errno:%d)\n", strerror(errno),errno);
@@ -62,7 +62,7 @@ void put(int sd, char *filename){
 		exit(1);
 	}
 	fseek(fp, 0, SEEK_END);
-	size = ftell(fp);
+	unsigned int size = ftell(fp);
 	fseek(fp, 0, SEEK_SET);
 	char *fbuff = malloc((size + 11)*sizeof(char));
 	memset(fbuff, '\0', sizeof(fbuff));
@@ -75,7 +75,7 @@ void put(int sd, char *filename){
 	PUT_REQUEST.length = 10;
 	char *buff;
 	int len=0, payload=1;
-	long int size=0;
+	size=0;
 
 	if((len=sendn(sd,(void*)&PUT_REQUEST,sizeof(PUT_REQUEST)))<0){ //send PUT_REQUEST
 		printf("Send Error: %s (Errno:%d)\n",strerror(errno),errno);
@@ -109,16 +109,17 @@ void put(int sd, char *filename){
 
 void get(int sd, char* file_name) {
 	struct message_s GET_REQUEST; //to server
+	int file_name_len = strlen(file_name);
 
 	strcpy(GET_REQUEST.protocol,"myftp");
 	GET_REQUEST.type = 0xB1;
-	GET_REQUEST.length = 10;
-	int file_name_len = strlen(file_name);
+	GET_REQUEST.length = 10 + file_name_len + 1;
 	char *buff = malloc(sizeof(char)*(10 + file_name_len + 1));
 	int len=0;
 
 	memcpy(buff, &GET_REQUEST, 10);
-	memcpy(&buff[10], (void *)file_name, file_name_len + 1);
+	memcpy(&buff[10], (void *)file_name, file_name_len);
+	buff[10 + file_name_len] = '\0';
 	if( (len=sendn(sd, (void *)buff, 10 + file_name_len + 1) ) < 0 ) {
 		printf("Send Error: %s (Errno:%d)\n",strerror(errno),errno); exit(0);
 	}
@@ -157,8 +158,9 @@ void get(int sd, char* file_name) {
 				printf("Send Error: %s (Errno:%d)\n",strerror(errno),errno); exit(0);
 			}
 			dl += fwrite(buff, 1, len, fp);
-			printf("Download %llu\n", dl);
+			printf("\rDownload %llu", dl);
 		}
+		printf("\n");
 		fclose(fp);
 		free(buff);
 		free(file_path);
