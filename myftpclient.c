@@ -14,41 +14,97 @@
 void list(int sd){
 	struct message_s LIST_REQUEST; //to server
 	struct message_s LIST_REPLY; //from server
-
-	strcpy(LIST_REQUEST.protocol,"myftp");
-	LIST_REQUEST.protocol[5]='\0';
+	//strcpy(LIST_REQUEST.protocol,"myftp");
+	LIST_REQUEST.protocol[0]='m'; LIST_REQUEST.protocol[1]='y'; LIST_REQUEST.protocol[2]='f'; LIST_REQUEST.protocol[3]='t'; LIST_REQUEST.protocol[4]='p';
 	LIST_REQUEST.type = 0xA1;
 	LIST_REQUEST.length = 10;
 	char *buff;
 	int len=0;
 
-	if((len=sendn(sd,(void*)&LIST_REQUEST,sizeof(LIST_REQUEST)))<0){
+	if((len=sendn(sd,(void*)&LIST_REQUEST,sizeof(LIST_REQUEST)))<0){ //send LIST_REQUEST
 		printf("Send Error: %s (Errno:%d)\n",strerror(errno),errno);
 		exit(0);
 	}
-	printf("list request\n");
+	//printf("list request\n");
 
-	buff = malloc(sizeof(char)*1024); //dynamic stack alloc later recv(len);->malloc(sizeof(char)*len)
-	memset(buff, '\0', sizeof(char)*1024);
+	buff = malloc(sizeof(char)*1024); //a block size of 1024, transmit data per block of 1024
+	memset(buff, '\0', sizeof(buf));
 
-	if((len=recvn(sd,buff,sizeof(buff)))<0){
+	if((len=recvn(sd,buff,sizeof(buff)))<0){ //recv LIST_REPLY
 		printf("receive error: %s (Errno:%d)\n", strerror(errno),errno);
 		exit(0);
 	}
 	printf("list recv\n");
 	memcpy(&LIST_REPLY, buff, 10);
+	//printf("buff: %s\n\n",buff);
+	//printf("LIST_REPLY.protocol: %s vs myftp\n",LIST_REPLY.protocol);
+	//printf("LIST_REPLY.type: %x vs 0xA2\n",LIST_REPLY.type);
+	//printf("LIST_REPLY.length: %d vs %d\n",LIST_REPLY.length,len);
 
-	printf("LIST_REPLY.protocol: %s vs myftp\n",LIST_REPLY.protocol);
-	printf("LIST_REPLY.type: %x vs 0xA2\n",LIST_REPLY.type);
-	printf("LIST_REPLY.length: %d vs %d\n",LIST_REPLY.length,len);
 	if(strcmp(LIST_REPLY.protocol,"myftp") == 0 && LIST_REPLY.type == 0xA2 && LIST_REPLY.length == len){
-		printf("%s",&buff[10]);
+		printf("%s",&buff[10]); // ===========list dir============= 
 		free(buff);
 	}
 	else{
 		perror("No list reply\n");
 		exit(1);
 	}
+}
+
+void put(int sd, char *filename){
+	struct message_s PUT_REQUEST; //to server
+	struct message_s PUT_REPLY; //from server
+	struct message_s FILE_DATA; //to server
+
+	FILE *fp = fopen(filename, "rb");
+	if(fp==NULL){
+		perror("file doesn't exist");
+		exit(1);
+	}
+	fseek(fp, 0, SEEK_END);
+	size = ftell(fp);
+	fseek(fp, 0, SEEK_SET);
+	char *fbuff = malloc((size + 11)*sizeof(char));
+	memset(fbuff, '\0', sizeof(fbuff));
+	fread(fbuff+10, 1, size, fp);
+	fbuff[size] = '\0';
+	fclose(fp);
+
+	PUT_REQUEST.protocol[0]='m'; PUT_REQUEST.protocol[1]='y'; PUT_REQUEST.protocol[2]='f'; PUT_REQUEST.protocol[3]='t'; PUT_REQUEST.protocol[4]='p';
+	PUT_REQUEST.type = 0xB1;
+	PUT_REQUEST.length = 10;
+	char *buff;
+	int len=0, payload=1;
+	long int size=0;
+
+	if((len=sendn(sd,(void*)&PUT_REQUEST,sizeof(PUT_REQUEST)))<0){ //send PUT_REQUEST
+		printf("Send Error: %s (Errno:%d)\n",strerror(errno),errno);
+		exit(0);
+	}
+
+	if((len=recvn(sd,buff,sizeof(buff)))<0){ //recv PUT_REPLY
+		printf("receive error: %s (Errno:%d)\n", strerror(errno),errno);
+		exit(0);
+	}
+	memcpy(&PUT_REPLY, buff, 10);
+	if(strcmp(PUT_REPLY.protocol,"myftp") == 0 && PUT_REPLY.type == 0xB2 && PUT_REPLY.length == len){
+		free(buff);
+		//=============================
+		FILE_DATA.protocol[0]='m'; FILE_DATA.protocol[1]='y'; FILE_DATA.protocol[2]='f'; FILE_DATA.protocol[3]='t'; FILE_DATA.protocol[4]='p';
+		FILE_DATA.type = 0xB1;
+		FILE_DATA.length = 10;
+		memcpy(fbuff, &FILE_DATA, 10);
+		if((len=sendn(sd,(void*)fbuff,sizeof(fbuff)))<0){ //send FILE_DATA
+			printf("Send file data Error: %s (Errno:%d)\n",strerror(errno),errno);
+			exit(0);
+		}
+		//=============================
+	}
+	else{
+		perror("No put reply\n");
+		exit(1);
+	}
+
 }
 
 void main_task(in_addr_t ip, unsigned short port, char* op, char* filename)
@@ -84,7 +140,7 @@ void main_task(in_addr_t ip, unsigned short port, char* op, char* filename)
 
 	}
 	else if(strcmp(op,"put")==0){
-
+		put(fd, filename);
 	}
 	else{
 		perror("neither list, get or put can be performed");
