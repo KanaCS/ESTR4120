@@ -13,8 +13,8 @@
 #include <pthread.h>
 #include "myftp.h"
 #define DPATH "data/"
-void list(void *sd){
-	int len=0, payload=0, *fd=(int*)sd;
+void list(int sd){
+	int len=0, payload=1;//, *fd=(int*)sd;
 	DIR *dir1;
 	struct dirent *ptr;
 	struct message_s LIST_REQUEST;
@@ -37,29 +37,43 @@ void list(void *sd){
 	LIST_REQUEST.length = 10;
 	memcpy(buff, &LIST_REQUEST, 10);
 
-	if((len=sendn(*fd,(void*)buff,sizeof(buff)))<0){
+	if((len=sendn(sd,(void*)buff,sizeof(buff)))<0){
 		printf("Send Error: %s (Errno:%d)\n",strerror(errno),errno);
 		exit(0);
 	}
+	close(sd);
 }
 
 void *option(void *sd){
-	int len=0, *fd; 
-	char buff[1024];
+
+	int len=0, *fd;
+
+	char buff[11];
 	struct message_s REQUEST;
 	fd=(int*)sd;
-	if((len=recvn(*fd,buff,sizeof(buff)))<0){
+	//printf("fd = %d\n",*fd);
+	if((len=recv(*fd,buff,sizeof(buff),0))<0){
 		printf("receive error: %s (Errno:%d)\n", strerror(errno),errno);
 		exit(0);
 	}
-	memcpy(&REQUEST, buff, 10); 
-	if(strcmp(REQUEST.protocol,"myftp") == 0 && REQUEST.type == 0xA1 && REQUEST.length == len){ //list
-		list(sd);
+	//printf("\nbuff: %s\n\n",buff);
+	memcpy(&REQUEST, buff, 10);
+
+	// printf("heyyyyy???\n");
+	// printf("REQUEST.protocol:%s   %d\n",REQUEST.protocol,strcmp(REQUEST.protocol,"myftp") == 0);
+	// printf("REQUEST.type: %d\n",REQUEST.type==0xA1);
+	// printf("REQUEST.length:%d\n",REQUEST.length==len);
+	if(REQUEST.protocol[0]!='m' || REQUEST.protocol[1]!='y'|| REQUEST.protocol[2]!='f' && REQUEST.protocol[3]!='t' && REQUEST.protocol[4]!='p'){
+		perror("server request failure\n");
+		exit(1);	
 	}
-	else if(strcmp(*REQUEST.protocol,"myftp") == 0 && REQUEST.type == 0xB1 && REQUEST.length == len){//get
+	if(REQUEST.type == 0xA1 && REQUEST.length == len){ //list
+		list(*fd);
+	}
+	else if(REQUEST.type == 0xB1 && REQUEST.length == len){//get
 		//get(sd);
 	}
-	else if(strcmp(*REQUEST.protocol,"myftp") == 0 && REQUEST.type == 0xC1 && REQUEST.length == len){//put
+	else if(REQUEST.type == 0xC1 && REQUEST.length == len){//put
 		//put(sd);
 	}
 	else{
@@ -67,6 +81,7 @@ void *option(void *sd){
 		exit(1);
 	}
 	pthread_exit(NULL);
+
 }
 
 void main_loop(unsigned short port)
@@ -116,7 +131,7 @@ void main_loop(unsigned short port)
 			perror("accept()");
 			exit(1);
 		}
-
+		printf("accept_fd = %d\n",accept_fd);
 		client_count++;
 
 		if (pthread_create(&thread, NULL, option, &accept_fd)) { 
@@ -124,8 +139,7 @@ void main_loop(unsigned short port)
 			exit(1);
 		}
 
-		close(accept_fd);	// Time to shut up.
-
+		//close(fd);	// Time to shut up.
 	}	// End of infinite, accepting loop.
 }
 
