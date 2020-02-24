@@ -12,7 +12,7 @@
 #include <dirent.h>
 #include <pthread.h>
 #include "myftp.h"
-#define DPATH "data/"
+
 void list(void *sd){
 	int len=0, payload=0, *fd=(int*)sd;
 	DIR *dir1;
@@ -34,7 +34,7 @@ void list(void *sd){
 
 	strcpy(LIST_REQUEST.protocol,"myftp");
 	LIST_REQUEST.type = 0xA2;
-	LIST_REQUEST.length = 10;
+	LIST_REQUEST.length = 10; // (Oscar) I think your LIST_REPLY here should have length = 10 + payload
 	memcpy(buff, &LIST_REQUEST, 10);
 
 	if((len=sendn(*fd,(void*)buff,sizeof(buff)))<0){
@@ -43,6 +43,80 @@ void list(void *sd){
 	}
 }
 
+void get(int sd, char *file_name) {
+	DIR *dir1;
+	dir1 = opendir(DPATH);
+	struct dirent *ptr_dirent;
+	int file_found = 0;
+	while((ptr_dirent= readdir(DPATH)) != NULL) {
+		if(strcmp(ptr_dirent->d_name, file_name) == 0) {
+			file_found = 1;
+			break;
+		}
+	}
+	if(file_found == 0) { // file not found
+		// GET_REPLY
+		struct message_s GET_REPLY;
+		strcpy(GET_REPLY.protocol,"myftp");
+		GET_REPLY.type = 0xB3;
+		GET_REPLY.length = 10;
+
+		char *buff = malloc(sizeof(char) * 10);
+		memcpy(buff, &GET_REPLY, 10);
+		int len = 0;
+		if((len=sendn(sd,(void*)buff,sizeof(buff)))<0){
+			printf("Send Error: %s (Errno:%d)\n",strerror(errno),errno);
+			exit(0);
+		}
+		free(buff);
+	}
+	else { // file found, send GET_REPLY and send file
+		// GET_REPLY
+		int len = 0;
+		struct message_s GET_REPLY; strcpy(GET_REPLY.protocol,"myftp"); GET_REPLY.type = 0xB2; GET_REPLY.length = 10;
+		char *buff = malloc(sizeof(char) * 10); 
+		memcpy(buff, &GET_REPLY, 10);
+		if( (len = sendn(sd, (void *)buff, sizeof(buff))) < 0) {
+			printf("Send Error: %s (Errno:%d)\n",strerror(errno),errno);
+			exit(0);
+		}
+		free(buff);
+		// FILE_DATA
+
+		char *file_path = malloc(sizeof(char) *(strlen(DPATH) + strlen(file_name)));
+		strcpy(file_path, DPATH);
+		strcpy(&file_path[strlen(DPATH)], file_name);
+		FILE *fd = fopen(file_path, "r");
+
+		fseek(fd, 0, SEEK_END);
+		unsigned long long file_len = ftell(fd);
+		fseek(fd, 0, SEEK_SET);
+
+		int s = 0;
+		buff = malloc(sizeof(char)* (BATCH_SIZE + 10));
+		unsigned long long req_batch = file_len / BATCH_SIZE, i = 0;
+
+		struct message_s FILE_DATA; strcpy(FILE_DATA.protocol,"myftp"); FILE_DATA.type = 0xFF; 
+		for(i = 0; i < req_batch; i++) {
+			s = fread(&buff[10], BATCH_SIZE, 1, fd);
+			FILE_DATA.length = s+10;
+			memcpy(buff, &FILE_DATA, 10);
+			if( (len = sendn(sd, (void *)buff, s+10)) < 0) {
+				printf("Send Error: %s (Errno:%d)\n",strerror(errno),errno);
+				exit(0);
+			}
+		}
+		FILE_DATA.length = 10;
+		memcpy(buff, &FILE_DATA, 10);
+		if( (len = sendn(sd, (void *)buff, 10)) < 0) {
+			printf("Send Error: %s (Errno:%d)\n",strerror(errno),errno);
+			exit(0);
+		}
+		free(file_path);
+		fclose(fd);
+		free(buff);
+	}
+}
 void *option(void *sd){
 	int len=0, *fd; 
 	char buff[1024];
@@ -57,7 +131,10 @@ void *option(void *sd){
 		list(sd);
 	}
 	else if(strcmp(*REQUEST.protocol,"myftp") == 0 && REQUEST.type == 0xB1 && REQUEST.length == len){//get
-		//get(sd);
+		char *file_name = malloc(sizeof(char)* len - 10);
+
+		get(*(int*)sd, file_name);
+		free(file_name);
 	}
 	else if(strcmp(*REQUEST.protocol,"myftp") == 0 && REQUEST.type == 0xC1 && REQUEST.length == len){//put
 		//put(sd);
