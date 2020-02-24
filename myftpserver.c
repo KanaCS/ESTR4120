@@ -18,9 +18,10 @@ void list(int sd){
 	int len=0, payload=1;//, *fd=(int*)sd;
 	DIR *dir1;
 	struct dirent *ptr;
-	struct message_s LIST_REQUEST;
+	struct message_s LIST_REPLY; 
 	char *buff = malloc(sizeof(char)*1024);
 	memset(buff, '\0', sizeof(char)*1024);
+
 
 	dir1 = opendir(DPATH);
 	printf("====================\n");
@@ -33,10 +34,10 @@ void list(int sd){
 	printf("====================\n");
 	closedir(dir1);
 
-	strcpy(LIST_REQUEST.protocol,"myftp");
-	LIST_REQUEST.type = 0xA2;
-	LIST_REQUEST.length = 10; // (Oscar) I think your LIST_REPLY here should have length = 10 + payload
-	memcpy(buff, &LIST_REQUEST, 10);
+	strcpy(LIST_REPLY.protocol,"myftp");
+	LIST_REPLY.type = 0xA2;
+	LIST_REPLY.length = 10;
+	memcpy(buff, &LIST_REPLY, 10);
 
 	if((len=sendn(sd,(void*)buff,sizeof(buff)))<0){
 		printf("Send Error: %s (Errno:%d)\n",strerror(errno),errno);
@@ -151,11 +152,16 @@ void *option(void *sd){
 	if(REQUEST.type == 0xA1 && REQUEST.length == len){ //list
 		list(*fd);
 	}
+<<<<<<< HEAD
 	else if(REQUEST.type == 0xB1){//get
 		get(*(int*)sd, pl_buff);
+=======
+	else if(REQUEST.type == 0xB1 && REQUEST.length == len){//get
+		//get(sd);
+>>>>>>> b69004a8725a6d588b73d98e7f286c1d927b273a
 	}
 	else if(REQUEST.type == 0xC1 && REQUEST.length == len){//put
-		//put(sd);
+		put(*fd);
 	}
 	else{
 		perror("server request failure\n");
@@ -165,6 +171,7 @@ void *option(void *sd){
 	pthread_exit(NULL);
 
 }
+
 
 void main_loop(unsigned short port)
 {

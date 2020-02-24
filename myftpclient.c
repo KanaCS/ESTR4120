@@ -52,6 +52,7 @@ void list(int sd){
 }
 
 void put(int sd, char *filename){
+<<<<<<< HEAD
 	struct message_s PUT_REQUEST; //to server
 	struct message_s PUT_REPLY; //from server
 	struct message_s FILE_DATA; //to server
@@ -104,6 +105,60 @@ void put(int sd, char *filename){
 		perror("No put reply\n");
 		exit(1);
 	}
+=======
+// 	struct message_s PUT_REQUEST; //to server
+// 	struct message_s PUT_REPLY; //from server
+// 	struct message_s FILE_DATA; //to server
+
+// 	FILE *fp = fopen(filename, "rb");
+// 	if(fp==NULL){
+// 		perror("file doesn't exist");
+// 		exit(1);
+// 	}
+// 	fseek(fp, 0, SEEK_END);
+// 	size = ftell(fp);
+// 	fseek(fp, 0, SEEK_SET);
+// 	char *fbuff = malloc((size + 11)*sizeof(char));
+// 	memset(fbuff, '\0', sizeof(fbuff));
+// 	fread(fbuff+10, 1, size, fp);
+// 	fbuff[size] = '\0';
+// 	fclose(fp);
+
+// 	PUT_REQUEST.protocol[0]='m'; PUT_REQUEST.protocol[1]='y'; PUT_REQUEST.protocol[2]='f'; PUT_REQUEST.protocol[3]='t'; PUT_REQUEST.protocol[4]='p';
+// 	PUT_REQUEST.type = 0xB1;
+// 	PUT_REQUEST.length = 10;
+// 	char *buff;
+// 	int len=0, payload=1;
+// 	long int size=0;
+
+// 	if((len=sendn(sd,(void*)&PUT_REQUEST,sizeof(PUT_REQUEST)))<0){ //send PUT_REQUEST
+// 		printf("Send Error: %s (Errno:%d)\n",strerror(errno),errno);
+// 		exit(0);
+// 	}
+
+// 	if((len=recvn(sd,buff,sizeof(buff)))<0){ //recv PUT_REPLY
+// 		printf("receive error: %s (Errno:%d)\n", strerror(errno),errno);
+// 		exit(0);
+// 	}
+// 	memcpy(&PUT_REPLY, buff, 10);
+// 	if(strcmp(PUT_REPLY.protocol,"myftp") == 0 && PUT_REPLY.type == 0xB2 && PUT_REPLY.length == len){
+// 		free(buff);
+// 		//=============================
+// 		FILE_DATA.protocol[0]='m'; FILE_DATA.protocol[1]='y'; FILE_DATA.protocol[2]='f'; FILE_DATA.protocol[3]='t'; FILE_DATA.protocol[4]='p';
+// 		FILE_DATA.type = 0xB1;
+// 		FILE_DATA.length = 10;
+// 		memcpy(fbuff, &FILE_DATA, 10);
+// 		if((len=sendn(sd,(void*)fbuff,sizeof(fbuff)))<0){ //send FILE_DATA
+// 			printf("Send file data Error: %s (Errno:%d)\n",strerror(errno),errno);
+// 			exit(0);
+// 		}
+// 		//=============================
+// 	}
+// 	else{
+// 		perror("No put reply\n");
+// 		exit(1);
+// 	}
+>>>>>>> b69004a8725a6d588b73d98e7f286c1d927b273a
 
 }
 
