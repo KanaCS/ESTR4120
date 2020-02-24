@@ -1,16 +1,14 @@
 CC = gcc
-CFLAG = -lpthread
+LIB = 
 
-all: myftp myftpserver myftpclient
+all: server client
 
-myftp: myftp.c
-	$(CC) -o $@ $<
+server:
+	${CC} -o myftpserver myftpserver.c myftp.c ${LIB} -lpthread
 
-myftpserver: myftpserver.c
-	$(CC) -o $@ $< $(CFLAG)
-
-myftpclient: myftpclient.c
-	$(CC) -o $@ $< $(CFLAG)
+client:
+	${CC} -o myftpclient myftpclient.c myftp.c ${LIB}
 
 clean:
-	rm myftp myftpserver myftpclient
+	rm myftpserver
+	rm myftpclient
