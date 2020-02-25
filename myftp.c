@@ -38,3 +38,32 @@ int recvn(int sd, void *buf, int buf_len){
 	}
 	return buf_len;
 }
+
+void showLoaderBytes(char* str, unsigned long long b) {
+	double t = (double)b /1024,  tprev = (double)b;
+	int i = 0;
+	while(tprev >= 1024) {
+		tprev = t;
+		t = t / 1024;
+		i++;
+	}
+	memcpy(str, "Downloading ", 12);
+	if(i == 1) {
+		sprintf(&str[12], "%.2lf KB\0", tprev);
+		return;
+	}
+	if(i == 2) {
+		sprintf(&str[12], "%.2lf MB\0", tprev);
+		return;
+	}
+	if(i == 3) {
+		sprintf(&str[12], "%.2lf GB\0", tprev);
+		return;
+	}
+	if(i == 4) {
+		sprintf(&str[12], "%.2lf TB\0", tprev);
+		return;
+	}
+	sprintf(&str[12], "%llu Bytes\0", b);
+	return;
+}

@@ -164,6 +164,7 @@ void get(int sd, char* file_name) {
 		memcpy(&file_path[DPATH_LEN], file_name, file_name_len);
 		FILE *fp = fopen(file_path, "w");
 		unsigned long long dl = 0;
+		char *showMessage = malloc(sizeof(char) *50);
 		while(1) {
 			if( (len=recvn(sd, (void *)buff, 10) ) < 0 ) {
 				printf("Receive file Error: %s (Errno:%d)\n",strerror(errno),errno); exit(0);
@@ -183,7 +184,8 @@ void get(int sd, char* file_name) {
 				printf("Receive file Error: %s (Errno:%d)\n",strerror(errno),errno); exit(0);
 			}
 			dl += fwrite(buff, 1, len, fp);
-			printf("\rDownloading %llu bytes", dl);
+			showLoaderBytes(showMessage, dl);
+			printf("\r%s", showMessage);
 		}
 		printf("\n");
 		fclose(fp);
