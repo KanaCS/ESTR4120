@@ -57,8 +57,10 @@ void put(int sd, char *filename){
 	struct message_s PUT_REPLY; //from server
 	struct message_s FILE_DATA; //to server
 	
-
-	FILE *fp = fopen(filename, "r");
+	char *file_path = malloc(sizeof(char) *(strlen(DPATH) + strlen(filename)));
+   	strcpy(file_path, DPATH);
+   	strcpy(&file_path[strlen(DPATH)], filename);
+	FILE *fp = fopen(file_path, "r");
 	if(fp==NULL){
 		perror("requested upload file doesn't exist");
 		exit(1);
@@ -72,6 +74,7 @@ void put(int sd, char *filename){
 	char *buff = malloc(sizeof(char) *(header_len));
 
 	memcpy(buff, &PUT_REQUEST, header_len);
+	strcpy(&buff[10], filename);
 	unsigned int len=0;
 
 	if((len=sendn(sd, (void*)buff, header_len))<0){ //send PUT_REQUEST
@@ -84,11 +87,11 @@ void put(int sd, char *filename){
 		printf("receive error: %s (Errno:%d)\n", strerror(errno),errno);
 		exit(0);
 	}
+	memcpy(&PUT_REPLY, buff, 10);
 	printf("PUT_REPLY.protocol:%s\n",PUT_REPLY.protocol);
 	printf("PUT_REPLY.type:%x\n",PUT_REPLY.type);
 	printf("PUT_REPLY.len:%d\n",PUT_REPLY.length);
 	
-	memcpy(&PUT_REPLY, buff, 10);
 	if(memcmp(PUT_REPLY.protocol, PROTOCOL_CODE, 5) != 0) {
 		perror("Wrong protocol code in PUT_REPLY header\n"); exit(1);
 	}
@@ -185,7 +188,7 @@ void get(int sd, char* file_name) {
 				printf("Receive file Error: %s (Errno:%d)\n",strerror(errno),errno); exit(0);
 			}
 			dl += fwrite(buff, 1, len, fp);
-			showLoaderBytes(showMessage, dl);
+			showLoaderBytes("Downloaded ", showMessage, dl);
 			printf("\r%s", showMessage);
 		}
 		printf("\n");
@@ -221,6 +224,7 @@ void main_task(in_addr_t ip, unsigned short port, char* op, char* filename)
    addr.sin_addr.s_addr = ip;
    addr.sin_port = htons(port);
  
+	// printf("%s len:%d\n", filename, strlen(filename));
    if( connect(fd, (struct sockaddr *) &addr, addrlen) == -1 ) 	// connect to the destintation
    {
    	perror("connect()");

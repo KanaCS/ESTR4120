@@ -121,34 +121,44 @@ void get(int sd, char *file_name) {
 }
  
 void put(int sd, char *file_name){
-	int len=0,file_data_len;
+	int len=0;
+	unsigned int file_data_len;
 	struct message_s PUT_REPLY;
 	struct message_s FILE_DATA;
-	char fullname[20];
-	strcpy(fullname, "data/");
-	strcat(fullname, file_name);
-	fullname[5+strlen(file_name)]='\0';
-	FILE *fp = fopen(fullname, "wb");
-	
-	char *buff = (char*)malloc(sizeof(char)*1024*2);
-	memset(buff, '\0', sizeof(char)*1024);
+	char *full_path = malloc(sizeof(char) * 50);
+	memcpy(full_path, DPATH, DPATH_LEN);
+	strcpy(&full_path[DPATH_LEN], file_name);
+
+	FILE *fp = fopen(full_path, "w");
+	if(fp == NULL) {
+		perror("Write file error\n"); exit(1);
+	}
+	char *buff = (char*)malloc(sizeof(char)*(BATCH_SIZE+10));
+	// memset(buff, '\0', sizeof(char)*(BATCH_SIZE+10));
 
 	memcpy(PUT_REPLY.protocol,"myftp",5);
 	PUT_REPLY.type = 0xC2;
 	PUT_REPLY.length = 10;
 	memcpy(buff, &PUT_REPLY, 10);
 
-	if((len=sendn(sd,(void*)&PUT_REPLY,sizeof(PUT_REPLY)))<0){
+	if((len=sendn(sd,(void*)buff, 10))<0){
 		printf("Send Error: %s (Errno:%d)\n",strerror(errno),errno);
 		exit(0);
 	}
 
 	unsigned long long dl = 0;
+	char *message_str = malloc(sizeof(char) *50); 
 	while(1) {
 		if( (len=recvn(sd, (void *)buff, 10) ) < 0 ) {
 			printf("Send Error: %s (Errno:%d)\n",strerror(errno),errno); exit(0);
 		}
 		memcpy(&FILE_DATA, buff, 10);
+		if(memcmp(FILE_DATA.protocol, PROTOCOL_CODE, 5) != 0) {
+			perror("Wrong protocol code in FILE_DATA header\n"); exit(1);
+		}
+		if(FILE_DATA.type != 0xFF) {
+			perror("Wrong type code in FILE_DATA header\n"); exit(1);
+		}
 		file_data_len = FILE_DATA.length - 10;
 		if(file_data_len == 0) {
 			break;
@@ -156,10 +166,14 @@ void put(int sd, char *file_name){
 		if( (len=recvn(sd, (void *)buff, file_data_len) ) < 0 ) {
 			printf("Send Error: %s (Errno:%d)\n",strerror(errno),errno); exit(0);
 		}
-		dl += fwrite(buff, 1, len, fp);
-		printf("\rDownload %llu", dl);
-	}
 
+		dl += fwrite(buff, 1, len, fp);
+		showLoaderBytes("Received ", message_str, dl);
+		printf("\r%s", message_str);
+	}
+	printf("\n");
+	free(message_str);
+	free(buff);
 	fclose(fp);
 
 }
@@ -199,6 +213,7 @@ void *option(void *sd){
    		get(*(int*)sd, pl_buff);
    }
    else if(memcmp(&REQUEST.protocol,"myftp",5)==0 && REQUEST.type == 0xC1){//put
+		// printf("%s")
    		put(*fd, pl_buff);
    }
    else{
