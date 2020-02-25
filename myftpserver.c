@@ -36,10 +36,10 @@ void list(int sd){
  
    memcpy(&LIST_REPLY.protocol,"myftp",5);
    LIST_REPLY.type = 0xA2;
-   LIST_REPLY.length = 1024;
+   LIST_REPLY.length = 10 + payload;
    memcpy(buff, &LIST_REPLY, 10);
    //printf("before:[%c %c %c]\n",buff[10],buff[11],buff[12]);
-   if((len=sendn(sd,buff,sizeof(char)*1024))<0){
+   if((len=sendn(sd,buff,10+payload))<0){
    	printf("Send Error: %s (Errno:%d)\n",strerror(errno),errno);
    	exit(0);
    }
@@ -120,7 +120,7 @@ void get(int sd, char *file_name) {
    }
 }
  
-void put(int sd){
+void put(int sd, char *file_name){
 	int len=0,file_data_len;
 	struct message_s PUT_REPLY;
 	struct message_s FILE_DATA;
@@ -161,6 +161,7 @@ void put(int sd){
 	}
 
 	fclose(fp);
+
 }
  
  
@@ -174,14 +175,14 @@ void *option(void *sd){
    fd=(int*)sd;
    //printf("fd = %d\n",*fd);
    if((len=recvn(*(int*)sd,buff, 10))<0){
-   	printf("receive error: %s (Errno:%d)\n", strerror(errno),errno); exit(0);
+   		printf("receive error: %s (Errno:%d)\n", strerror(errno),errno); exit(0);
    }
    memcpy(&REQUEST, buff, 10);
    if(REQUEST.length > 10) {
    	pl_buff = malloc(sizeof(char) * (REQUEST.length-10));
    }
    if((len=recvn(*(int*)sd, pl_buff, REQUEST.length-10))<0){
-   	printf("receive error: %s (Errno:%d)\n", strerror(errno),errno); exit(0);
+   		printf("receive error: %s (Errno:%d)\n", strerror(errno),errno); exit(0);
    }
    //printf("\nbuff: %s\n\n",buff);
  
@@ -191,14 +192,14 @@ void *option(void *sd){
 	printf("REQUEST.length:%d %d\n",REQUEST.length,len);
  
    if(memcmp(&REQUEST.protocol,"myftp",5)==0 && REQUEST.type == 0xA1){ //list
-   	list(*fd);
+   		list(*fd);
    }
  
-   else if(REQUEST.type == 0xB1){//get
-   	get(*(int*)sd, pl_buff);
+   else if(memcmp(&REQUEST.protocol,"myftp",5)==0 && REQUEST.type == 0xB1){//get
+   		get(*(int*)sd, pl_buff);
    }
-   else if(REQUEST.type == 0xC1 && REQUEST.length == len){//put
-   	put(*fd);
+   else if(memcmp(&REQUEST.protocol,"myftp",5)==0 && REQUEST.type == 0xC1){//put
+   		put(*fd, pl_buff);
    }
    else{
    	perror("server request failure\n");
