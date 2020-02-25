@@ -128,7 +128,7 @@ void put(int sd){
 	memset(buff, '\0', sizeof(char)*1024);
 
 	strcpy(PUT_REPLY.protocol,"myftp");
-	PUT_REPLY.type = 0xB2;
+	PUT_REPLY.type = 0xC2;
 	PUT_REPLY.length = 10;
 	memcpy(buff, &PUT_REPLY, 10);
 
