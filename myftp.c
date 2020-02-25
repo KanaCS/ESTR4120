@@ -47,23 +47,23 @@ void showLoaderBytes(char* str, unsigned long long b) {
 		t = t / 1024;
 		i++;
 	}
-	memcpy(str, "Downloading ", 12);
+	memcpy(str, "Downloaded ", 11);
 	if(i == 1) {
-		sprintf(&str[12], "%.2lf KB\0", tprev);
+		sprintf(&str[11], "%.2lf KB\0", tprev);
 		return;
 	}
 	if(i == 2) {
-		sprintf(&str[12], "%.2lf MB\0", tprev);
+		sprintf(&str[11], "%.2lf MB\0", tprev);
 		return;
 	}
 	if(i == 3) {
-		sprintf(&str[12], "%.2lf GB\0", tprev);
+		sprintf(&str[11], "%.2lf GB\0", tprev);
 		return;
 	}
 	if(i == 4) {
-		sprintf(&str[12], "%.2lf TB\0", tprev);
+		sprintf(&str[11], "%.2lf TB\0", tprev);
 		return;
 	}
-	sprintf(&str[12], "%llu Bytes\0", b);
+	sprintf(&str[11], "%llu Bytes\0", b);
 	return;
 }
