@@ -1,1 +1,5 @@
-
+- [ ] max 10 clients (pthread checking in client)
+- [x] max file name len of 50 char
+- [x] multiplatform
+- [x] big data file i.e. 96MB (both get and put)
+- [x] file not found case (both get and put)
