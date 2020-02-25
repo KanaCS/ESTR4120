@@ -164,7 +164,7 @@ void get(int sd, char* file_name) {
 		char *file_path = malloc(sizeof(char) * (DPATH_LEN + file_name_len));
 		memcpy(file_path, DPATH, DPATH_LEN);
 		strcpy(&file_path[DPATH_LEN], file_name);
-		FILE *fp = fopen(file_path, "w");
+		FILE *fp = fopen(file_name, "w");
 		unsigned long long dl = 0;
 		char *showMessage = malloc(sizeof(char) *50);
 		while(1) {
