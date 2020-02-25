@@ -38,7 +38,6 @@ int recvn(int sd, void *buf, int buf_len){
 	}
 	return buf_len;
 }
-<<<<<<< HEAD
 
 void showLoaderBytes(char* str, unsigned long long b) {
 	double t = (double)b /1024,  tprev = (double)b;
@@ -68,5 +67,3 @@ void showLoaderBytes(char* str, unsigned long long b) {
 	sprintf(&str[12], "%llu Bytes\0", b);
 	return;
 }
-=======
->>>>>>> 0867ae6eeecc58efd2a61cc02d06abe17d39572c
