@@ -57,10 +57,8 @@ void put(int sd, char *filename){
 	struct message_s PUT_REPLY; //from server
 	struct message_s FILE_DATA; //to server
 	
-	char *file_path = malloc(sizeof(char) *(strlen(DPATH) + strlen(filename)));
-   	strcpy(file_path, DPATH);
-   	strcpy(&file_path[strlen(DPATH)], filename);
-	FILE *fp = fopen(file_path, "r");
+
+	FILE *fp = fopen(filename, "r");
 	if(fp==NULL){
 		perror("requested upload file doesn't exist");
 		exit(1);
