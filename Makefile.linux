@@ -3,12 +3,12 @@ LIB =
 
 all: server client
 
-server: server.c
-	${CC} -o server server.c ${LIB}
+server: myftpserver.c myftp.c
+	${CC} -o server myftpserver.c myftp.c -lpthread ${LIB}
 
-client: client.c
-	${CC} -o client client.c ${LIB}
+client: myftpclient.c myftp.c
+	${CC} -o client myftpclient.c myftp.c ${LIB}
 
 clean:
 	rm server
-	rm client	
+	rm client
