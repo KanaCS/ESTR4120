@@ -1,13 +1,14 @@
-all: 
-	@if [ "`uname -s`" = "Linux" ] || [ "`uname -s`" = "Darwin" ]; then \
-		make -f Makefile.linux ; \
-	else \
-		make -f Makefile.sunos ; \
-	fi
+CC = gcc
+LIB = 
 
-clean: 
-	@if [ "`uname -s`" = "Linux" ] || [ "`uname -s`" = "Darwin" ]; then \
-		make clean -f Makefile.linux ; \
-	else \
-		make clean -f Makefile.sunos ; \
-	fi
+all: server client
+
+server:
+	${CC} -o server_env/myftpserver myftpserver.c myftp.c ${LIB} -lpthread
+
+client:
+	${CC} -o client_env/myftpclient myftpclient.c myftp.c ${LIB}
+
+clean:
+	rm myftpserver
+	rm myftpclient
