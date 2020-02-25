@@ -121,7 +121,7 @@ void get(int sd, char *file_name) {
 }
  
 void put(int sd){
-	int len=0;
+	int len=0,file_data_len;
 	struct message_s PUT_REPLY;
 	struct message_s FILE_DATA;
 	char fullname[20];
@@ -130,7 +130,7 @@ void put(int sd){
 	fullname[5+strlen(file_name)]='\0';
 	FILE *fp = fopen(fullname, "wb");
 	
-	char *buff = (char*)malloc(sizeof(char)*1024);
+	char *buff = (char*)malloc(sizeof(char)*1024*2);
 	memset(buff, '\0', sizeof(char)*1024);
 
 	memcpy(PUT_REPLY.protocol,"myftp",5);
@@ -143,17 +143,24 @@ void put(int sd){
 		exit(0);
 	}
 
-	if((len=recvn(sd,buff,sizeof(buff)))<0){
-		printf("receive error: %s (Errno:%d)\n", strerror(errno),errno);
-		exit(0);
+	unsigned long long dl = 0;
+	while(1) {
+		if( (len=recvn(sd, (void *)buff, 10) ) < 0 ) {
+			printf("Send Error: %s (Errno:%d)\n",strerror(errno),errno); exit(0);
+		}
+		memcpy(&FILE_DATA, buff, 10);
+		file_data_len = FILE_DATA.length - 10;
+		if(file_data_len == 0) {
+			break;
+		}
+		if( (len=recvn(sd, (void *)buff, file_data_len) ) < 0 ) {
+			printf("Send Error: %s (Errno:%d)\n",strerror(errno),errno); exit(0);
+		}
+		dl += fwrite(buff, 1, len, fp);
+		printf("\rDownload %llu", dl);
 	}
-	memcpy(&FILE_DATA,buff,10);
 
-	if(memcmp(&FILE_DATA, "myftp", 5) == 0 && FILE_DATA.type == 0xFF && len == FILE_DATA.length){
-		fwrite(&buff[10], 1, FILE_DATA.length-10, fp);
-	}
-	close(fp);
-
+	fclose(fp);
 }
  
  
