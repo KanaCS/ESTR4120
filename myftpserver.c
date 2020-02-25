@@ -39,7 +39,7 @@ void list(int sd){
 	LIST_REPLY.length = 10;
 	memcpy(buff, &LIST_REPLY, 10);
 
-	if((len=sendn(sd,(void*)buff,sizeof(buff)))<0){
+	if((len=sendn(sd,(void*)buff,sizeof(char)*1024))<0){
 		printf("Send Error: %s (Errno:%d)\n",strerror(errno),errno);
 		exit(0);
 	}
@@ -132,7 +132,7 @@ void put(int sd){
 	PUT_REPLY.length = 10;
 	memcpy(buff, &PUT_REPLY, 10);
 
-	if((len=sendn(sd,(void*)PUT_REPLY,sizeof(PUT_REPLY)))<0){
+	if((len=sendn(sd,(void*)&PUT_REPLY,sizeof(PUT_REPLY)))<0){
 		printf("Send Error: %s (Errno:%d)\n",strerror(errno),errno);
 		exit(0);
 	}
