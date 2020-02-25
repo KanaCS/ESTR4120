@@ -120,6 +120,37 @@ void get(int sd, char *file_name) {
 	}
 }
 
+void put(int sd){
+	int len=0;
+	struct message_s PUT_REPLY; 
+	struct message_s FILE_DATA; 
+	char *buff = (char*)malloc(sizeof(char)*1024);
+	memset(buff, '\0', sizeof(char)*1024);
+
+	strcpy(PUT_REPLY.protocol,"myftp");
+	PUT_REPLY.type = 0xB2;
+	PUT_REPLY.length = 10;
+	memcpy(buff, &PUT_REPLY, 10);
+
+	if((len=sendn(sd,(void*)PUT_REPLY,sizeof(PUT_REPLY)))<0){
+		printf("Send Error: %s (Errno:%d)\n",strerror(errno),errno);
+		exit(0);
+	}
+
+	if((len=recvn(sd,buff,sizeof(buff)))<0){
+		printf("receive error: %s (Errno:%d)\n", strerror(errno),errno);
+		exit(0);
+	}
+	memcpy(&FILE_DATA, buff, 10);
+	if(FILE_DATA.protocol[0]!='m' || FILE_DATA.protocol[1]!='y'|| FILE_DATA.protocol[2]!='f' && FILE_DATA.protocol[3]!='t' && FILE_DATA.protocol[4]!='p' || FILE_DATA.type != 0xFF || FILE_DATA.length != len){
+		perror("file data put server failure\n");
+		exit(1);	
+	}
+
+	//unfinished
+}
+
+
 void *option(void *sd){
 
 	int len=0, *fd;
@@ -172,36 +203,6 @@ void *option(void *sd){
 
 }
 	
-void put(int sd){
-	int len=0;
-	struct message_s PUT_REPLY; 
-	struct message_s FILE_DATA; 
-	char *buff = (char*)malloc(sizeof(char)*1024);
-	memset(buff, '\0', sizeof(char)*1024);
-
-	strcpy(PUT_REPLY.protocol,"myftp");
-	PUT_REPLY.type = 0xB2;
-	PUT_REPLY.length = 10;
-	memcpy(buff, &PUT_REPLY, 10);
-
-	if((len=sendn(sd,(void*)PUT_REPLY,sizeof(PUT_REPLY)))<0){
-		printf("Send Error: %s (Errno:%d)\n",strerror(errno),errno);
-		exit(0);
-	}
-
-	if((len=recvn(sd,buff,sizeof(buff)))<0){
-		printf("receive error: %s (Errno:%d)\n", strerror(errno),errno);
-		exit(0);
-	}
-	memcpy(&FILE_DATA, buff, 10);
-	if(FILE_DATA.protocol[0]!='m' || FILE_DATA.protocol[1]!='y'|| FILE_DATA.protocol[2]!='f' && FILE_DATA.protocol[3]!='t' && FILE_DATA.protocol[4]!='p' || FILE_DATA.type != 0xFF || FILE_DATA.length != len){
-		perror("file data put server failure\n");
-		exit(1);	
-	}
-
-	
-
-}
 
 
 
