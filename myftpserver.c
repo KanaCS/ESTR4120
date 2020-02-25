@@ -84,18 +84,18 @@ void get(int sd, char *file_name) {
 			exit(0);
 		}
 		free(buff);
-		// FILE_DATA
 
-		char *file_path = malloc(sizeof(char) *(strlen(DPATH) + strlen(file_name)));
-		strcpy(file_path, DPATH);
-		strcpy(&file_path[strlen(DPATH)], file_name);
+		// FILE_DATA
+		char *file_path = malloc(sizeof(char) *(DPATH_LEN + strlen(file_name)));
+		memcpy(file_path, DPATH, DPATH_LEN);
+		strcpy(&file_path[DPATH_LEN], file_name);
 		FILE *fd = fopen(file_path, "r");
 
 		fseek(fd, 0, SEEK_END);
 		unsigned long long file_len = ftell(fd);
 		fseek(fd, 0, SEEK_SET);
 
-		int s = 0;
+		unsigned int s = 0;
 		buff = malloc(sizeof(char)* (BATCH_SIZE + 10));
 		unsigned long long req_batch = file_len / BATCH_SIZE + 1, i = 0;
 		struct message_s FILE_DATA; strcpy(FILE_DATA.protocol,"myftp"); FILE_DATA.type = 0xFF; 

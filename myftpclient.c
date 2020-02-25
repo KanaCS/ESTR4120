@@ -52,66 +52,81 @@ void list(int sd){
 }
 
 void put(int sd, char *filename){
-// 	struct message_s PUT_REQUEST; //to server
-// 	struct message_s PUT_REPLY; //from server
-// 	struct message_s FILE_DATA; //to server
+	struct message_s PUT_REQUEST; //to server
+	struct message_s PUT_REPLY; //from server
+	struct message_s FILE_DATA; //to server
 
-// 	FILE *fp = fopen(filename, "rb");
-// 	if(fp==NULL){
-// 		perror("file doesn't exist");
-// 		exit(1);
-// 	}
-// 	fseek(fp, 0, SEEK_END);
-// 	size = ftell(fp);
-// 	fseek(fp, 0, SEEK_SET);
-// 	char *fbuff = malloc((size + 11)*sizeof(char));
-// 	memset(fbuff, '\0', sizeof(fbuff));
-// 	fread(fbuff+10, 1, size, fp);
-// 	fbuff[size] = '\0';
-// 	fclose(fp);
+	char *file_path = malloc(sizeof(char) * (DPATH_LEN + strlen(filename)+1));
+	memcpy(file_path, DPATH, DPATH_LEN);
+	strcpy(&file_path[DPATH_LEN], filename);
+	FILE *fp = fopen(file_path, "r");
+	if(fp==NULL){
+		perror("requested upload file doesn't exist");
+		exit(1);
+	}
 
-// 	PUT_REQUEST.protocol[0]='m'; PUT_REQUEST.protocol[1]='y'; PUT_REQUEST.protocol[2]='f'; PUT_REQUEST.protocol[3]='t'; PUT_REQUEST.protocol[4]='p';
-// 	PUT_REQUEST.type = 0xB1;
-// 	PUT_REQUEST.length = 10;
-// 	char *buff;
-// 	int len=0, payload=1;
-// 	long int size=0;
+	// PUT_REQUEST
+	strcpy(PUT_REQUEST.protocol, PROTOCOL_CODE);
+	PUT_REQUEST.type = 0xC1;
+	int header_len = 10 + strlen(filename) + 1;
+	PUT_REQUEST.length = header_len;
+	char *buff = malloc(sizeof(char) *(header_len));
 
-// 	if((len=sendn(sd,(void*)&PUT_REQUEST,sizeof(PUT_REQUEST)))<0){ //send PUT_REQUEST
-// 		printf("Send Error: %s (Errno:%d)\n",strerror(errno),errno);
-// 		exit(0);
-// 	}
+	memcpy(buff, &PUT_REQUEST, header_len);
+	unsigned int len=0;
 
-// 	if((len=recvn(sd,buff,sizeof(buff)))<0){ //recv PUT_REPLY
-// 		printf("receive error: %s (Errno:%d)\n", strerror(errno),errno);
-// 		exit(0);
-// 	}
-// 	memcpy(&PUT_REPLY, buff, 10);
-// 	if(strcmp(PUT_REPLY.protocol,"myftp") == 0 && PUT_REPLY.type == 0xB2 && PUT_REPLY.length == len){
-// 		free(buff);
-// 		//=============================
-// 		FILE_DATA.protocol[0]='m'; FILE_DATA.protocol[1]='y'; FILE_DATA.protocol[2]='f'; FILE_DATA.protocol[3]='t'; FILE_DATA.protocol[4]='p';
-// 		FILE_DATA.type = 0xB1;
-// 		FILE_DATA.length = 10;
-// 		memcpy(fbuff, &FILE_DATA, 10);
-// 		if((len=sendn(sd,(void*)fbuff,sizeof(fbuff)))<0){ //send FILE_DATA
-// 			printf("Send file data Error: %s (Errno:%d)\n",strerror(errno),errno);
-// 			exit(0);
-// 		}
-// 		//=============================
-// 	}
-// 	else{
-// 		perror("No put reply\n");
-// 		exit(1);
-// 	}
+	if((len=sendn(sd, (void*)buff, header_len))<0){ //send PUT_REQUEST
+		printf("Send Error: %s (Errno:%d)\n",strerror(errno),errno);
+		exit(0);
+	}
 
+	// PUT_REPLY
+	if((len=recvn(sd, buff, 10))<0){ //recv PUT_REPLY
+		printf("receive error: %s (Errno:%d)\n", strerror(errno),errno);
+		exit(0);
+	}
+	memcpy(&PUT_REPLY, buff, 10);
+	if(memcmp(PUT_REPLY.protocol, PROTOCOL_CODE, 5) != 0) {
+		perror("Wrong protocol code in PUT_REPLY header\n"); exit(1);
+	}
+	if(PUT_REPLY.type != 0xC2) { 
+		perror("Wrong type code in PUT_REPLY header\n"); exit(1);
+	}
+	free(buff);
+
+	// FILE_DATA
+	fseek(fp, 0, SEEK_END);
+	unsigned long long size = ftell(fp);
+	fseek(fp, 0, SEEK_SET);
+	unsigned long long req_batch = size / BATCH_SIZE + 1 , i = 0;
+	unsigned int s = 0;
+	buff = malloc(sizeof(char) * (BATCH_SIZE + 10));
+	strcpy(FILE_DATA.protocol, PROTOCOL_CODE); FILE_DATA.type = 0xFF;
+	for(i = 0; i < req_batch; i++) {
+		s = fread(buff, 1, BATCH_SIZE, fp);
+		FILE_DATA.length = s + 10;
+		memcpy(buff, &FILE_DATA, 10);
+		if( (len = sendn(sd, (void *)buff, s+10)) < 0) {
+			printf("Send Error: %s (Errno:%d)\n",strerror(errno),errno);
+			exit(0);
+		}
+	}
+	FILE_DATA.length = 10;
+	memcpy(buff, &FILE_DATA, 10);
+	if( (len = sendn(sd, (void *)buff, 10)) < 0) {
+		printf("Send Error: %s (Errno:%d)\n",strerror(errno),errno);
+		exit(0);
+	}
+	free(buff);
+	free(file_path);
+	fclose(fp);
 }
 
 void get(int sd, char* file_name) {
 	struct message_s GET_REQUEST; //to server
 	int file_name_len = strlen(file_name);
 
-	strcpy(GET_REQUEST.protocol,"myftp");
+	strcpy(GET_REQUEST.protocol, PROTOCOL_CODE);
 	GET_REQUEST.type = 0xB1;
 	GET_REQUEST.length = 10 + file_name_len + 1;
 	char *buff = malloc(sizeof(char)*(10 + file_name_len + 1));
@@ -136,6 +151,9 @@ void get(int sd, char* file_name) {
 	// }
 	
 	free(buff);
+	if(memcmp(GET_REPLY.protocol, PROTOCOL_CODE, 5) != 0) {
+		perror("Wrong protocol code in GET_REPLY\n"); exit(1);
+	}
 	if(GET_REPLY.type == 0xB2) {
 		struct message_s FILE_DATA;
 		buff = malloc(sizeof(char) * BATCH_SIZE);
@@ -147,18 +165,24 @@ void get(int sd, char* file_name) {
 		unsigned long long dl = 0;
 		while(1) {
 			if( (len=recvn(sd, (void *)buff, 10) ) < 0 ) {
-				printf("Send Error: %s (Errno:%d)\n",strerror(errno),errno); exit(0);
+				printf("Receive file Error: %s (Errno:%d)\n",strerror(errno),errno); exit(0);
 			}
 			memcpy(&FILE_DATA, buff, 10);
+			if(memcmp(FILE_DATA.protocol, PROTOCOL_CODE, 5) != 0) {
+				perror("Wrong protocol code in FILE_DATA header\n"); exit(1);
+			}
+			if(FILE_DATA.type != 0xFF) {
+				perror("Wrong type code in FILE_DATA header\n"); exit(1);
+			}
 			file_data_len = FILE_DATA.length - 10;
 			if(file_data_len == 0) {
 				break;
 			}
 			if( (len=recvn(sd, (void *)buff, file_data_len) ) < 0 ) {
-				printf("Send Error: %s (Errno:%d)\n",strerror(errno),errno); exit(0);
+				printf("Receive file Error: %s (Errno:%d)\n",strerror(errno),errno); exit(0);
 			}
 			dl += fwrite(buff, 1, len, fp);
-			printf("\rDownload %llu", dl);
+			printf("\rDownloading %llu bytes", dl);
 		}
 		printf("\n");
 		fclose(fp);
