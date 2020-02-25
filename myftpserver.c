@@ -36,10 +36,10 @@ void list(int sd){
  
    memcpy(&LIST_REPLY.protocol,"myftp",5);
    LIST_REPLY.type = 0xA2;
-   LIST_REPLY.length = 1024;
+   LIST_REPLY.length = 10 + payload;
    memcpy(buff, &LIST_REPLY, 10);
    //printf("before:[%c %c %c]\n",buff[10],buff[11],buff[12]);
-   if((len=sendn(sd,buff,sizeof(char)*1024))<0){
+   if((len=sendn(sd,buff,10+payload))<0){
    	printf("Send Error: %s (Errno:%d)\n",strerror(errno),errno);
    	exit(0);
    }
@@ -120,34 +120,48 @@ void get(int sd, char *file_name) {
    }
 }
  
-void put(int sd){
-   int len=0;
-   struct message_s PUT_REPLY;
-   struct message_s FILE_DATA;
-   char *buff = (char*)malloc(sizeof(char)*1024);
-   memset(buff, '\0', sizeof(char)*1024);
- 
-   strcpy(PUT_REPLY.protocol,"myftp");
-   PUT_REPLY.type = 0xC2;
-   PUT_REPLY.length = 10;
-   memcpy(buff, &PUT_REPLY, 10);
- 
-   if((len=sendn(sd,(void*)&PUT_REPLY,sizeof(PUT_REPLY)))<0){
-   	printf("Send Error: %s (Errno:%d)\n",strerror(errno),errno);
-   	exit(0);
-   }
- 
-   if((len=recvn(sd,buff,sizeof(buff)))<0){
-   	printf("receive error: %s (Errno:%d)\n", strerror(errno),errno);
-   	exit(0);
-   }
-   memcpy(&FILE_DATA, buff, 10);
-   if(FILE_DATA.protocol[0]!='m' || FILE_DATA.protocol[1]!='y'|| FILE_DATA.protocol[2]!='f' && FILE_DATA.protocol[3]!='t' && FILE_DATA.protocol[4]!='p' || FILE_DATA.type != 0xFF || FILE_DATA.length != len){
-   	perror("file data put server failure\n");
-   	exit(1);   
-   }
- 
-   //unfinished
+void put(int sd, char *file_name){
+	int len=0,file_data_len;
+	struct message_s PUT_REPLY;
+	struct message_s FILE_DATA;
+	char fullname[20];
+	strcpy(fullname, "data/");
+	strcat(fullname, file_name);
+	fullname[5+strlen(file_name)]='\0';
+	FILE *fp = fopen(fullname, "wb");
+	
+	char *buff = (char*)malloc(sizeof(char)*1024*2);
+	memset(buff, '\0', sizeof(char)*1024);
+
+	memcpy(PUT_REPLY.protocol,"myftp",5);
+	PUT_REPLY.type = 0xC2;
+	PUT_REPLY.length = 10;
+	memcpy(buff, &PUT_REPLY, 10);
+
+	if((len=sendn(sd,(void*)&PUT_REPLY,sizeof(PUT_REPLY)))<0){
+		printf("Send Error: %s (Errno:%d)\n",strerror(errno),errno);
+		exit(0);
+	}
+
+	unsigned long long dl = 0;
+	while(1) {
+		if( (len=recvn(sd, (void *)buff, 10) ) < 0 ) {
+			printf("Send Error: %s (Errno:%d)\n",strerror(errno),errno); exit(0);
+		}
+		memcpy(&FILE_DATA, buff, 10);
+		file_data_len = FILE_DATA.length - 10;
+		if(file_data_len == 0) {
+			break;
+		}
+		if( (len=recvn(sd, (void *)buff, file_data_len) ) < 0 ) {
+			printf("Send Error: %s (Errno:%d)\n",strerror(errno),errno); exit(0);
+		}
+		dl += fwrite(buff, 1, len, fp);
+		printf("\rDownload %llu", dl);
+	}
+
+	fclose(fp);
+
 }
  
  
@@ -161,14 +175,14 @@ void *option(void *sd){
    fd=(int*)sd;
    //printf("fd = %d\n",*fd);
    if((len=recvn(*(int*)sd,buff, 10))<0){
-   	printf("receive error: %s (Errno:%d)\n", strerror(errno),errno); exit(0);
+   		printf("receive error: %s (Errno:%d)\n", strerror(errno),errno); exit(0);
    }
    memcpy(&REQUEST, buff, 10);
    if(REQUEST.length > 10) {
    	pl_buff = malloc(sizeof(char) * (REQUEST.length-10));
    }
    if((len=recvn(*(int*)sd, pl_buff, REQUEST.length-10))<0){
-   	printf("receive error: %s (Errno:%d)\n", strerror(errno),errno); exit(0);
+   		printf("receive error: %s (Errno:%d)\n", strerror(errno),errno); exit(0);
    }
    //printf("\nbuff: %s\n\n",buff);
  
@@ -178,14 +192,14 @@ void *option(void *sd){
 	printf("REQUEST.length:%d %d\n",REQUEST.length,len);
  
    if(memcmp(&REQUEST.protocol,"myftp",5)==0 && REQUEST.type == 0xA1){ //list
-   	list(*fd);
+   		list(*fd);
    }
  
-   else if(REQUEST.type == 0xB1){//get
-   	get(*(int*)sd, pl_buff);
+   else if(memcmp(&REQUEST.protocol,"myftp",5)==0 && REQUEST.type == 0xB1){//get
+   		get(*(int*)sd, pl_buff);
    }
-   else if(REQUEST.type == 0xC1 && REQUEST.length == len){//put
-   	put(*fd);
+   else if(memcmp(&REQUEST.protocol,"myftp",5)==0 && REQUEST.type == 0xC1){//put
+   		put(*fd, pl_buff);
    }
    else{
    	perror("server request failure\n");

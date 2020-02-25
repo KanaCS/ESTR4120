@@ -42,7 +42,7 @@ void list(int sd){
    //printf("LIST_REPLY.type: %x vs 0xA2\n",LIST_REPLY.type);
    //printf("LIST_REPLY.length: %d vs %d\n",LIST_REPLY.length,len);
  
-   if(memcmp(LIST_REPLY.protocol,"myftp",5) == 0 && LIST_REPLY.type == 0xA2 && len == LIST_REPLY.length){
+   if(memcmp(LIST_REPLY.protocol,"myftp",5) == 0 && LIST_REPLY.type == 0xA2){
    	printf("%s",&buff[10]); // ===========list dir=============
    	free(buff);
    }
@@ -56,11 +56,9 @@ void put(int sd, char *filename){
 	struct message_s PUT_REQUEST; //to server
 	struct message_s PUT_REPLY; //from server
 	struct message_s FILE_DATA; //to server
+	
 
-	char *file_path = malloc(sizeof(char) * (DPATH_LEN + strlen(filename)+1));
-	memcpy(file_path, DPATH, DPATH_LEN);
-	strcpy(&file_path[DPATH_LEN], filename);
-	FILE *fp = fopen(file_path, "r");
+	FILE *fp = fopen(filename, "r");
 	if(fp==NULL){
 		perror("requested upload file doesn't exist");
 		exit(1);
@@ -86,6 +84,10 @@ void put(int sd, char *filename){
 		printf("receive error: %s (Errno:%d)\n", strerror(errno),errno);
 		exit(0);
 	}
+	printf("PUT_REPLY.protocol:%s\n",PUT_REPLY.protocol);
+	printf("PUT_REPLY.type:%x\n",PUT_REPLY.type);
+	printf("PUT_REPLY.len:%d\n",PUT_REPLY.length);
+	
 	memcpy(&PUT_REPLY, buff, 10);
 	if(memcmp(PUT_REPLY.protocol, PROTOCOL_CODE, 5) != 0) {
 		perror("Wrong protocol code in PUT_REPLY header\n"); exit(1);
@@ -119,7 +121,6 @@ void put(int sd, char *filename){
 		exit(0);
 	}
 	free(buff);
-	free(file_path);
 	fclose(fp);
 }
  
@@ -198,6 +199,7 @@ void get(int sd, char* file_name) {
 	}
 }
  
+ 
 void main_task(in_addr_t ip, unsigned short port, char* op, char* filename)
 {
    int buf;
@@ -210,6 +212,7 @@ void main_task(in_addr_t ip, unsigned short port, char* op, char* filename)
    	perror("socket()");
    	exit(1);
    }
+   printf("socket created");
  
    // Below 4 lines: Set up the destination with IP address and port number.
  
@@ -225,13 +228,16 @@ void main_task(in_addr_t ip, unsigned short port, char* op, char* filename)
    }
  
    if(strcmp(op,"list")==0){
-   	list(fd);
+   		list(fd);
+		printf("going into list");
    }
    else if(strcmp(op,"get")==0){
-   	get(fd, filename);
+   		get(fd, filename);
+		printf("going into get");
    }
    else if(strcmp(op,"put")==0){
-   	put(fd, filename);
+   		put(fd, filename);
+		printf("going into put");
    }
    else{
    	perror("neither list, get or put can be performed");
