@@ -67,7 +67,7 @@ void get(int sd, char *file_name) {
    	char *buff = malloc(sizeof(char) * 10);
    	memcpy(buff, &GET_REPLY, 10);
    	int len = 0;
-   	if((len=sendn(sd,(void*)buff,10))<0){
+   	if((len=sendn(sd,(void*)buff,sizeof(buff)))<0){
        	printf("Send Error: %s (Errno:%d)\n",strerror(errno),errno);
        	exit(0);
    	}
@@ -225,15 +225,34 @@ void *option(void *sd){
  
 }
  
- 
+void *thread_prog(void *fd){
+	int *sd=(int*)fd;
+	int accept_fd;
+	struct sockaddr_in tmp_addr;
+	pthread_t thread;
+	unsigned int addrlen = sizeof(struct sockaddr_in);
+	while(1) {
+		// Accept one client
+		if( (accept_fd = accept(*sd, (struct sockaddr *) &tmp_addr, &addrlen)) == -1){
+			perror("accept()");
+			exit(1);
+		}
+		printf("accept_fd = %d\n",accept_fd);
+
+		if (pthread_create(&thread, NULL, option, &accept_fd)) {
+			perror("pthread error");
+			exit(1);
+		}
+	}   
+ }
  
  
 void main_loop(unsigned short port)
 {
-   int fd, accept_fd, client_count;
-   struct sockaddr_in addr, tmp_addr;
+   int fd, i=0;
+   struct sockaddr_in addr;
    unsigned int addrlen = sizeof(struct sockaddr_in);
-   pthread_t thread;
+   pthread_t nthread[10];
  
    if((fd = socket(AF_INET, SOCK_STREAM, 0)) == -1){ // Create a TCP Socket
    	perror("socket()");
@@ -268,23 +287,11 @@ void main_loop(unsigned short port)
  
    printf("[To stop the server: press Ctrl + C]\n");
  
-   client_count = 0;
-   while(1) {
-   	// Accept one client
-   	if( (accept_fd = accept(fd, (struct sockaddr *) &tmp_addr, &addrlen)) == -1){
-       	perror("accept()");
-       	exit(1);
-   	}
-   	printf("accept_fd = %d\n",accept_fd);
-   	client_count++;
- 
-   	if (pthread_create(&thread, NULL, option, &accept_fd)) {
-       	perror("pthread error");
-       	exit(1);
-   	}
- 
-   	//close(fd);	// Time to shut up.
-   }   // End of infinite, accepting loop.
+   for (i = 0; i < 10; i++) {
+   	int ret_val = pthread_create(&nthread[i], NULL, thread_prog, &fd);
+   }
+   for (i = 0; i < 10; i++)
+  	  pthread_join(nthread[i], NULL);
 }
  
 int main(int argc, char **argv)
@@ -304,6 +311,3 @@ int main(int argc, char **argv)
 }
  
  
- 
- 
-
