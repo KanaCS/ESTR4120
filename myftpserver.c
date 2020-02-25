@@ -152,13 +152,8 @@ void *option(void *sd){
 	if(REQUEST.type == 0xA1 && REQUEST.length == len){ //list
 		list(*fd);
 	}
-<<<<<<< HEAD
 	else if(REQUEST.type == 0xB1){//get
 		get(*(int*)sd, pl_buff);
-=======
-	else if(REQUEST.type == 0xB1 && REQUEST.length == len){//get
-		//get(sd);
->>>>>>> b69004a8725a6d588b73d98e7f286c1d927b273a
 	}
 	else if(REQUEST.type == 0xC1 && REQUEST.length == len){//put
 		put(*fd);
