@@ -18,6 +18,7 @@ int sendn(int sd, void *buf, int buf_len){
 	uint16_t *temp = malloc(sizeof(uint16_t));
 	*temp = 123;
 	if (*temp != htons(*temp)) { // need to flip
+		printf("flip send\n");
 		if (buf_len % 2 == 0) {
 			int step = sizeof(uint16_t);
 			for(i = 0; i < buf_len; i+=step) {
@@ -72,6 +73,7 @@ int recvn(int sd, void *buf, int buf_len){
 	uint16_t *temp = malloc(sizeof(uint16_t));
 	*temp = 123;
 	if (*temp != ntohs(*temp)) { // need to flip
+		printf("flip recv\n");
 		if (buf_len % 2 == 0) {
 			int step = sizeof(uint16_t);
 			for(i = 0; i < buf_len; i+=step) {

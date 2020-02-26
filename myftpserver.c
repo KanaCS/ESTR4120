@@ -184,7 +184,7 @@ void put(int sd, char *file_name){
  
  
 void *option(void *sd){
- 
+	printf("in option\n");
    int len=0, *fd;
  
    char buff[11];
@@ -254,9 +254,10 @@ void main_loop(unsigned short port)
  
    memset(&addr, 0, sizeof(struct sockaddr_in));
    addr.sin_family = AF_INET;
-   addr.sin_addr.s_addr = htonl(INADDR_ANY);
-   addr.sin_port = htons(port);
- 
+//    addr.sin_addr.s_addr = htonl(INADDR_ANY);
+//    addr.sin_port = htons(port);
+   addr.sin_addr.s_addr = (INADDR_ANY);
+   addr.sin_port = (port);
    // After the setup has been done, invoke bind()
  
    if(bind(fd, (struct sockaddr *) &addr, sizeof(addr)) == -1){
@@ -281,10 +282,11 @@ void main_loop(unsigned short port)
             continue;
         }
         printf("accept_fd[%d] = %d\n",i, accept_fd[i]);
-        if(pthread_create(&thread[i], NULL, option, &accept_fd[i])){
+        if(pthread_create(&thread[i], NULL, option, &accept_fd[i]) != 0){
             perror("pthread error");
             exit(1);
         }
+		
         i++;
    }
 }
