@@ -70,7 +70,7 @@ void get(int sd, char *file_name) {
    	char *buff = malloc(sizeof(char) * 10);
    	memcpy(buff, &GET_REPLY, 10);
    	int len = 0;
-   	if((len=sendn(sd,(void*)buff,sizeof(buff)))<0){
+   	if((len=sendn(sd,(void*)buff,10))<0){
        	printf("Send Error: %s (Errno:%d)\n",strerror(errno),errno);
        	exit(0);
    	}
