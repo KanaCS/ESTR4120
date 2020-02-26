@@ -207,7 +207,7 @@ void *option(void *sd){
  
    // printf("heyyyyy???\n");
 	printf("REQUEST.protocol:%s   %d\n",REQUEST.protocol,memcmp(&REQUEST.protocol,"myftp",5) == 0);
-	printf("REQUEST.type: %d\n",REQUEST.type==0xA1);
+	printf("REQUEST.type: %x\n",REQUEST.type);
 	printf("REQUEST.length:%d %d\n",REQUEST.length,len);
  
    if(memcmp(&REQUEST.protocol,"myftp",5)==0 && REQUEST.type == 0xA1){ //list
