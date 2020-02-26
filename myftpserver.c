@@ -230,34 +230,15 @@ void *option(void *sd){
  
 }
  
-void *thread_prog(void *fd){
-	int *sd=(int*)fd;
-	int accept_fd;
-	struct sockaddr_in tmp_addr;
-	pthread_t thread;
-	unsigned int addrlen = sizeof(struct sockaddr_in);
-	while(1) {
-		// Accept one client
-		if( (accept_fd = accept(*sd, (struct sockaddr *) &tmp_addr, &addrlen)) == -1){
-			perror("accept()");
-			exit(1);
-		}
-		printf("accept_fd = %d\n",accept_fd);
-
-		if (pthread_create(&thread, NULL, option, &accept_fd)) {
-			perror("pthread error");
-			exit(1);
-		}
-	}   
- }
- 
  
 void main_loop(unsigned short port)
 {
    int fd, i=0;
    struct sockaddr_in addr;
    unsigned int addrlen = sizeof(struct sockaddr_in);
-   pthread_t nthread[15];
+   pthread_t thread[15];
+   int accept_fd[15];
+   struct sockaddr_in tmp_addr[15];
  
    if((fd = socket(AF_INET, SOCK_STREAM, 0)) == -1){ // Create a TCP Socket
    	perror("socket()");
@@ -291,12 +272,21 @@ void main_loop(unsigned short port)
    }
  
    printf("[To stop the server: press Ctrl + C]\n");
- 
-   for (i = 0; i < 15; i++) {
-   	int ret_val = pthread_create(&nthread[i], NULL, thread_prog, &fd);
+   i = 0;
+   while(1){
+        printf("hey\n");
+        if(i == 14) i=0;
+        if( (accept_fd[i] = accept(fd, (struct sockaddr*) &tmp_addr[i], &addrlen)) == -1 ){
+            perror("accept()");
+            continue;
+        }
+        printf("accept_fd[%d] = %d\n",i, accept_fd[i]);
+        if(pthread_create(&thread[i], NULL, option, &accept_fd[i])){
+            perror("pthread error");
+            exit(1);
+        }
+        i++;
    }
-   for (i = 0; i < 15; i++)
-  	  pthread_join(nthread[i], NULL);
 }
  
 int main(int argc, char **argv)
