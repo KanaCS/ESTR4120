@@ -73,8 +73,8 @@ void put(int sd, char *filename){
 
 	FILE *fp = fopen(filename, "r");
 	if(fp==NULL){
-		PUT_REQUEST.length = 0;
-		sendn(sd, (void*)&PUT_REQUEST, header_len);
+		//PUT_REQUEST.length = 0;
+		//sendn(sd, (void*)&PUT_REQUEST, header_len);
 		perror("requested upload file doesn't exist");
 		exit(1);
 	}
@@ -289,3 +289,7 @@ int main(int argc, char **argv)
    return 0;
 }
  
+ 
+ 
+ 
+
