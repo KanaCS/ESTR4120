@@ -65,18 +65,20 @@ void put(int sd, char *filename){
 	struct message_s PUT_REPLY; //from server
 	struct message_s FILE_DATA; //to server
 	
+	int notfound = 0;
+        FILE *fp = fopen(filename, "r");
+        if(fp==NULL){
+                perror("requested upload file doesn't exist");
+                notfound = 1; //exit(1);
+        }
 
-	FILE *fp = fopen(filename, "r");
-	if(fp==NULL){
-		perror("requested upload file doesn't exist");
-		exit(1);
-	}
 
 	// PUT_REQUEST
 	strcpy(PUT_REQUEST.protocol, PROTOCOL_CODE);
 	PUT_REQUEST.type = 0xC1;
 	int header_len = 10 + strlen(filename) + 1;
-	PUT_REQUEST.length = header_len;
+        if(notfound == 1) PUT_REQUEST.length = 0;
+        else PUT_REQUEST.length = header_len;
 	char *buff = malloc(sizeof(char) *(header_len));
 
 	memcpy(buff, &PUT_REQUEST, header_len);
@@ -87,6 +89,11 @@ void put(int sd, char *filename){
 		printf("Send Error: %s (Errno:%d)\n",strerror(errno),errno);
 		exit(0);
 	}
+	
+        if(notfound == 1){
+                free(buff);
+                exit(0);
+        }
 
 	// PUT_REPLY
 	if((len=recvn(sd, buff, 10))<0){ //recv PUT_REPLY
