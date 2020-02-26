@@ -22,8 +22,11 @@ void list(int sd){
    char *buff = malloc(sizeof(char)*1024);
    memset(buff, '\0', sizeof(char)*1024);
  
- 
-   dir1 = opendir(DPATH);
+	
+    if((dir1 = opendir(DPATH)) == NULL){
+		perror("cannot open dir");
+		exit(1);
+	};
    printf("====================\n");
    while((ptr = readdir(dir1)) != NULL){
    	printf("d_name: %s\n",ptr->d_name);
@@ -67,7 +70,7 @@ void get(int sd, char *file_name) {
    	char *buff = malloc(sizeof(char) * 10);
    	memcpy(buff, &GET_REPLY, 10);
    	int len = 0;
-   	if((len=sendn(sd,(void*)buff,sizeof(buff)))<0){
+   	if((len=sendn(sd,(void*)buff,10))<0){
        	printf("Send Error: %s (Errno:%d)\n",strerror(errno),errno);
        	exit(0);
    	}
@@ -220,7 +223,7 @@ void *option(void *sd){
    }
    else{
    	perror("server request failure\n");
-   	exit(1);
+   	//exit(1);
    }
    free(pl_buff);
    pthread_exit(NULL);
@@ -254,7 +257,7 @@ void main_loop(unsigned short port)
    int fd, i=0;
    struct sockaddr_in addr;
    unsigned int addrlen = sizeof(struct sockaddr_in);
-   pthread_t nthread[10];
+   pthread_t nthread[11];
  
    if((fd = socket(AF_INET, SOCK_STREAM, 0)) == -1){ // Create a TCP Socket
    	perror("socket()");
@@ -289,10 +292,10 @@ void main_loop(unsigned short port)
  
    printf("[To stop the server: press Ctrl + C]\n");
  
-   for (i = 0; i < 10; i++) {
+   for (i = 0; i < 11; i++) {
    	int ret_val = pthread_create(&nthread[i], NULL, thread_prog, &fd);
    }
-   for (i = 0; i < 10; i++)
+   for (i = 0; i < 11; i++)
   	  pthread_join(nthread[i], NULL);
 }
  
