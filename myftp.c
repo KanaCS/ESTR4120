@@ -12,6 +12,11 @@
 #include <sys/wait.h>
 
 int sendn(int sd, void *buf, int buf_len){
+	int i;
+	char *buf_ = (char *)buf;
+	for(i = 0; i < buf_len; i++) {
+		buf_[i] = htonl(buf_[i]);
+	}
 	int n_left = buf_len;
 	int n;
 	while(n_left > 0){
@@ -35,6 +40,11 @@ int recvn(int sd, void *buf, int buf_len){
 		}
 		else if (n == 0) return 0;
 		n_left -= n;
+	}
+	int i;
+	char *buf_ = (char *)buf;
+	for(i = 0; i < buf_len; i++) {
+		buf_[i] = ntohl(buf_[i]);
 	}
 	return buf_len;
 }
