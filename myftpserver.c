@@ -257,7 +257,7 @@ void main_loop(unsigned short port)
    int fd, i=0;
    struct sockaddr_in addr;
    unsigned int addrlen = sizeof(struct sockaddr_in);
-   pthread_t nthread[10];
+   pthread_t nthread[15];
  
    if((fd = socket(AF_INET, SOCK_STREAM, 0)) == -1){ // Create a TCP Socket
    	perror("socket()");
@@ -292,10 +292,10 @@ void main_loop(unsigned short port)
  
    printf("[To stop the server: press Ctrl + C]\n");
  
-   for (i = 0; i < 10; i++) {
+   for (i = 0; i < 15; i++) {
    	int ret_val = pthread_create(&nthread[i], NULL, thread_prog, &fd);
    }
-   for (i = 0; i < 10; i++)
+   for (i = 0; i < 15; i++)
   	  pthread_join(nthread[i], NULL);
 }
  
