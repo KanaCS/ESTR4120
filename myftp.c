@@ -13,10 +13,34 @@
 
 int sendn(int sd, void *buf, int buf_len){
 	int i;
+	// bytes reordering part
 	char *buf_ = (char *)buf;
-	for(i = 0; i < buf_len; i++) {
-		buf_[i] = htonl(buf_[i]);
+	uint16_t *temp = malloc(sizeof(uint16_t));
+	*temp = 123;
+	if (*temp != htons(*temp)) { // need to flip
+		if (buf_len % 2 == 0) {
+			int step = sizeof(uint16_t);
+			for(i = 0; i < buf_len; i+=step) {
+				memcpy(temp, &buf_[i], step);
+				*temp = htons(*temp);
+				memcpy(&buf_[i], temp, step);
+			}
+		}
+		else {
+			int step = sizeof(uint16_t);
+			for(i = 0; i < buf_len-1; i+=step) {
+				memcpy(temp, &buf_[i], step);
+				*temp = htons(*temp);
+				memcpy(&buf_[i], temp, step);
+			}
+			memcpy(temp, &buf_[buf_len-step], step);
+			*temp = htons(*temp);
+			memcpy(&buf_[buf_len-step/2], temp, step/2);
+		}
 	}
+	// 12345678
+	// 87654321
+	// bytes reordering part end
 	int n_left = buf_len;
 	int n;
 	while(n_left > 0){
@@ -27,6 +51,7 @@ int sendn(int sd, void *buf, int buf_len){
 		else if (n == 0) return 0;
 		n_left -= n;
 	}
+	free(temp);
 	return buf_len;
 }
 
@@ -42,10 +67,34 @@ int recvn(int sd, void *buf, int buf_len){
 		n_left -= n;
 	}
 	int i;
+	// bytes reordering part
 	char *buf_ = (char *)buf;
-	for(i = 0; i < buf_len; i++) {
-		buf_[i] = ntohl(buf_[i]);
+	uint16_t *temp = malloc(sizeof(uint16_t));
+	*temp = 123;
+	if (*temp != ntohs(*temp)) { // need to flip
+		if (buf_len % 2 == 0) {
+			int step = sizeof(uint16_t);
+			for(i = 0; i < buf_len; i+=step) {
+				memcpy(temp, &buf_[i], step);
+				*temp = ntohs(*temp);
+				memcpy(&buf_[i], temp, step);
+			}
+		}
+		else {
+			int step = sizeof(uint16_t);
+			for(i = 0; i < buf_len-1; i+=step) {
+				memcpy(temp, &buf_[i], step);
+				*temp = ntohs(*temp);
+				memcpy(&buf_[i], temp, step);
+			}
+			memcpy(temp, &buf_[buf_len-step], step);
+			*temp = ntohs(*temp);
+			memcpy(&buf_[buf_len-step/2], temp, step/2);
+		}
 	}
+	// bytes reordering part end
+
+	free(temp);
 	return buf_len;
 }
 

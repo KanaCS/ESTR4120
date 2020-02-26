@@ -27,10 +27,10 @@ void list(int sd){
    }
    //printf("list request\n");
  
-   buff = malloc(sizeof(char)*1024); //a block size of 1024, transmit data per block of 1024
+   buff = malloc(sizeof(char)*BATCH_SIZE); //a block size of 1024, transmit data per block of 1024
    memset(buff, '\0', sizeof(buff));
  
-   if((len=recvn(sd,buff,sizeof(char)*1024))<0){ //recv LIST_REPLY
+   if((len=recvn(sd,buff, 10))<0){ //recv LIST_REPLY
    	printf("receive error: %s (Errno:%d)\n", strerror(errno),errno);
    	exit(0);
    }
@@ -43,12 +43,18 @@ void list(int sd){
    //printf("LIST_REPLY.length: %d vs %d\n",LIST_REPLY.length,len);
  
    if(memcmp(LIST_REPLY.protocol,"myftp",5) == 0 && LIST_REPLY.type == 0xA2){
+	unsigned int pl_size = LIST_REPLY.length - 10;
+	if((len=recvn(sd, buff, pl_size))<0){ 
+		printf("receive error: %s (Errno:%d)\n", strerror(errno),errno);
+		exit(0);
+	}
 	printf("=========list dir===========\n");
-   	printf("%s",&buff[10]); 
+   	printf("%s",buff); 
 	printf("============================\n");
    	free(buff);
    }
    else{
+	printf("LIST_REPLY.type= %02x\n", LIST_REPLY.type);
    	perror("No list reply\n");
    	exit(1);
    }
@@ -109,7 +115,7 @@ void put(int sd, char *filename){
 	buff = malloc(sizeof(char) * (BATCH_SIZE + 10));
 	strcpy(FILE_DATA.protocol, PROTOCOL_CODE); FILE_DATA.type = 0xFF;
 	for(i = 0; i < req_batch; i++) {
-		s = fread(buff, 1, BATCH_SIZE, fp);
+		s = fread(&buff[10], 1, BATCH_SIZE, fp);
 		FILE_DATA.length = s + 10;
 		memcpy(buff, &FILE_DATA, 10);
 		if( (len = sendn(sd, (void *)buff, s+10)) < 0) {
@@ -152,12 +158,12 @@ void get(int sd, char* file_name) {
 	}
 	memcpy(&GET_REPLY, buff, 10);
 	
-	if(GET_REPLY.len == 0){
-		perror("requested upload file doesn't exist: No such file or directory\n"); exit(1);
-	}
-	// if(len != GET_REPLY.length) {
-	// 	printf("Recv Error: expect %d, recv %d\n", GET_REPLY.length, len); exit(0);
+	// if(GET_REPLY.length == 0){
+	// 	perror("requested upload file doesn't exist: No such file or directory\n"); exit(1);
 	// }
+	if(len != GET_REPLY.length) {
+		printf("Recv Error: expect %d, recv %d\n", GET_REPLY.length, len); exit(0);
+	}
 	
 	free(buff);
 	if(memcmp(GET_REPLY.protocol, PROTOCOL_CODE, 5) != 0) {

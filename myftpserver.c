@@ -160,6 +160,7 @@ void put(int sd, char *file_name){
 			perror("Wrong type code in FILE_DATA header\n"); exit(1);
 		}
 		file_data_len = FILE_DATA.length - 10;
+		// printf("RECEIVING %d BYTES BATCH\n", file_data_len);
 		if(file_data_len == 0) {
 			break;
 		}
@@ -193,11 +194,12 @@ void *option(void *sd){
    }
    memcpy(&REQUEST, buff, 10);
    if(REQUEST.length > 10) {
-   	pl_buff = malloc(sizeof(char) * (REQUEST.length-10));
+   		pl_buff = malloc(sizeof(char) * (REQUEST.length-10));
+		if((len=recvn(*(int*)sd, pl_buff, REQUEST.length-10))<0){
+			printf("receive error: %s (Errno:%d)\n", strerror(errno),errno); exit(0);
+   		}
    }
-   if((len=recvn(*(int*)sd, pl_buff, REQUEST.length-10))<0){
-   		printf("receive error: %s (Errno:%d)\n", strerror(errno),errno); exit(0);
-   }
+   
    //printf("\nbuff: %s\n\n",buff);
  
    // printf("heyyyyy???\n");
