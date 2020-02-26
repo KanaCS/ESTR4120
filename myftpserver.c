@@ -218,7 +218,7 @@ void *option(void *sd){
    		get(*(int*)sd, pl_buff);
    }
    else if(memcmp(&REQUEST.protocol,"myftp",5)==0 && REQUEST.type == 0xC1){//put
-		// printf("%s")
+	if(REQUEST.length != 0)
    		put(*fd, pl_buff);
    }
    else{
