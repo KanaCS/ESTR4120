@@ -4,7 +4,7 @@ LIB = -lsocket -lnsl
 all: server client
 
 server: myftpserver.c myftp.c
-	${CC} -o server myftpserver.c myftp.c -pthread ${LIB}
+	${CC} -o server myftpserver.c myftp.c -lpthread ${LIB}
 
 client: myftpclient.c myftp.c
 	${CC} -o client myftpclient.c myftp.c ${LIB}

@@ -17,11 +17,11 @@ void list(int sd){
    //strcpy(LIST_REQUEST.protocol,"myftp");
    memcpy(&LIST_REQUEST,"myftp",5);
    LIST_REQUEST.type = 0xA1;
-   LIST_REQUEST.length = 10;
+   LIST_REQUEST.length = ntohl(10);
    char *buff;
    int len=0;
- 
-   if((len=sendn(sd,(void*)&LIST_REQUEST,sizeof(LIST_REQUEST)))<0){ //send LIST_REQUEST
+  printf("list sending\n");
+   if((len=sendn(sd,(void*)&LIST_REQUEST,10))<0){ //send LIST_REQUEST
    	printf("Send Error: %s (Errno:%d)\n",strerror(errno),errno);
    	exit(0);
    }
@@ -29,18 +29,19 @@ void list(int sd){
  
    buff = malloc(sizeof(char)*BATCH_SIZE); //a block size of 1024, transmit data per block of 1024
    memset(buff, '\0', sizeof(buff));
- 
+printf("list waiting recv\n"); 
    if((len=recvn(sd,buff, 10))<0){ //recv LIST_REPLY
    	printf("receive error: %s (Errno:%d)\n", strerror(errno),errno);
    	exit(0);
    }
-   //printf("[%c %c %c]\n",buff[10],buff[11],buff[12]);
-   //printf("list recv\n");
+   printf("[%c %c %c]\n",buff[10],buff[11],buff[12]);
+   printf("list recv\n");
    memcpy(&LIST_REPLY, buff, 10);
+   LIST_REPLY.length = htonl(LIST_REPLY.length);
    //printf("buff: %s\n\n",buff);
-   //printf("LIST_REPLY.protocol: %s vs myftp\n",LIST_REPLY.protocol);
-   //printf("LIST_REPLY.type: %x vs 0xA2\n",LIST_REPLY.type);
-   //printf("LIST_REPLY.length: %d vs %d\n",LIST_REPLY.length,len);
+   printf("LIST_REPLY.protocol: %s vs myftp\n",LIST_REPLY.protocol);
+   printf("LIST_REPLY.type: %x vs 0xA2\n",LIST_REPLY.type);
+   printf("LIST_REPLY.length: %d vs %d\n",LIST_REPLY.length,len);
  
    if(memcmp(LIST_REPLY.protocol,"myftp",5) == 0 && LIST_REPLY.type == 0xA2){
 	unsigned int pl_size = LIST_REPLY.length - 10;
@@ -77,8 +78,8 @@ void put(int sd, char *filename){
 	strcpy(PUT_REQUEST.protocol, PROTOCOL_CODE);
 	PUT_REQUEST.type = 0xC1;
 	int header_len = 10 + strlen(filename) + 1;
-        if(notfound == 1) PUT_REQUEST.length = 0;
-        else PUT_REQUEST.length = header_len;
+        if(notfound == 1) PUT_REQUEST.length = ntohl(0);
+        else PUT_REQUEST.length = ntohl(header_len);
 	char *buff = malloc(sizeof(char) *(header_len));
 
 	memcpy(buff, &PUT_REQUEST, header_len);
@@ -123,14 +124,14 @@ void put(int sd, char *filename){
 	strcpy(FILE_DATA.protocol, PROTOCOL_CODE); FILE_DATA.type = 0xFF;
 	for(i = 0; i < req_batch; i++) {
 		s = fread(&buff[10], 1, BATCH_SIZE, fp);
-		FILE_DATA.length = s + 10;
+		FILE_DATA.length = ntohl(s + 10);
 		memcpy(buff, &FILE_DATA, 10);
 		if( (len = sendn(sd, (void *)buff, s+10)) < 0) {
 			printf("Send Error: %s (Errno:%d)\n",strerror(errno),errno);
 			exit(0);
 		}
 	}
-	FILE_DATA.length = 10;
+	FILE_DATA.length = ntohl(10);
 	memcpy(buff, &FILE_DATA, 10);
 	if( (len = sendn(sd, (void *)buff, 10)) < 0) {
 		printf("Send Error: %s (Errno:%d)\n",strerror(errno),errno);
@@ -146,7 +147,7 @@ void get(int sd, char* file_name) {
 
 	strcpy(GET_REQUEST.protocol, PROTOCOL_CODE);
 	GET_REQUEST.type = 0xB1;
-	GET_REQUEST.length = 10 + file_name_len + 1;
+	GET_REQUEST.length = ntohl(10 + file_name_len + 1);
 	char *buff = malloc(sizeof(char)*(10 + file_name_len + 1));
 	int len=0;
 

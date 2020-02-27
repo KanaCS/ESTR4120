@@ -17,28 +17,27 @@ int sendn(int sd, void *buf, int buf_len){
 	char *buf_ = (char *)buf;
 	uint16_t *temp = malloc(sizeof(uint16_t));
 	*temp = 123;
-	if (*temp != htons(*temp)) { // need to flip
-		printf("flip send\n");
-		if (buf_len % 2 == 0) {
-			int step = sizeof(uint16_t);
-			for(i = 0; i < buf_len; i+=step) {
-				memcpy(temp, &buf_[i], step);
-				*temp = htons(*temp);
-				memcpy(&buf_[i], temp, step);
-			}
-		}
-		else {
-			int step = sizeof(uint16_t);
-			for(i = 0; i < buf_len-1; i+=step) {
-				memcpy(temp, &buf_[i], step);
-				*temp = htons(*temp);
-				memcpy(&buf_[i], temp, step);
-			}
-			memcpy(temp, &buf_[buf_len-step], step);
-			*temp = htons(*temp);
-			memcpy(&buf_[buf_len-step/2], temp, step/2);
-		}
-	}
+//	if (*temp != htons(*temp)) { // need to flip
+//		if (buf_len % 2 == 0) {
+//			int step = sizeof(uint16_t);
+//			for(i = 0; i < buf_len; i+=step) {
+//				memcpy(temp, &buf_[i], step);
+//				*temp = htons(*temp);
+//				memcpy(&buf_[i], temp, step);
+//			}
+//		}
+//		else {
+//			int step = sizeof(uint16_t);
+//			for(i = 0; i < buf_len-1; i+=step) {
+//				memcpy(temp, &buf_[i], step);
+//				*temp = htons(*temp);
+//				memcpy(&buf_[i], temp, step);
+//			}
+//			memcpy(temp, &buf_[buf_len-step], step);
+//			*temp = htons(*temp);
+//			memcpy(&buf_[buf_len-step/2], temp, step/2);
+//		}
+//	}
 	// 12345678
 	// 87654321
 	// bytes reordering part end
@@ -71,29 +70,28 @@ int recvn(int sd, void *buf, int buf_len){
 	// bytes reordering part
 	char *buf_ = (char *)buf;
 	uint16_t *temp = malloc(sizeof(uint16_t));
-	*temp = 123;
-	if (*temp != ntohs(*temp)) { // need to flip
-		printf("flip recv\n");
-		if (buf_len % 2 == 0) {
-			int step = sizeof(uint16_t);
-			for(i = 0; i < buf_len; i+=step) {
-				memcpy(temp, &buf_[i], step);
-				*temp = ntohs(*temp);
-				memcpy(&buf_[i], temp, step);
-			}
-		}
-		else {
-			int step = sizeof(uint16_t);
-			for(i = 0; i < buf_len-1; i+=step) {
-				memcpy(temp, &buf_[i], step);
-				*temp = ntohs(*temp);
-				memcpy(&buf_[i], temp, step);
-			}
-			memcpy(temp, &buf_[buf_len-step], step);
-			*temp = ntohs(*temp);
-			memcpy(&buf_[buf_len-step/2], temp, step/2);
-		}
-	}
+//	*temp = 123;
+//	if (*temp != ntohs(*temp)) { // need to flip
+//		if (buf_len % 2 == 0) {
+//			int step = sizeof(uint16_t);
+//			for(i = 0; i < buf_len; i+=step) {
+//				memcpy(temp, &buf_[i], step);
+//				*temp = ntohs(*temp);
+//				memcpy(&buf_[i], temp, step);
+//			}
+//		}
+//		else {
+//			int step = sizeof(uint16_t);
+//			for(i = 0; i < buf_len-1; i+=step) {
+//				memcpy(temp, &buf_[i], step);
+//				*temp = ntohs(*temp);
+//				memcpy(&buf_[i], temp, step);
+//			}
+//			memcpy(temp, &buf_[buf_len-step], step);
+//			*temp = ntohs(*temp);
+//			memcpy(&buf_[buf_len-step/2], temp, step/2);
+//		}
+	//}
 	// bytes reordering part end
 
 	free(temp);

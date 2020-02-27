@@ -39,7 +39,7 @@ void list(int sd){
  
    memcpy(&LIST_REPLY.protocol,"myftp",5);
    LIST_REPLY.type = 0xA2;
-   LIST_REPLY.length = 10 + payload;
+   LIST_REPLY.length = ntohl(10 + payload);
    memcpy(buff, &LIST_REPLY, 10);
    //printf("before:[%c %c %c]\n",buff[10],buff[11],buff[12]);
    if((len=sendn(sd,buff,10+payload))<0){
@@ -156,6 +156,7 @@ void put(int sd, char *file_name){
 			printf("Send Error: %s (Errno:%d)\n",strerror(errno),errno); exit(0);
 		}
 		memcpy(&FILE_DATA, buff, 10);
+FILE_DATA.length = ntohl(FILE_DATA.length);
 		if(memcmp(FILE_DATA.protocol, PROTOCOL_CODE, 5) != 0) {
 			perror("Wrong protocol code in FILE_DATA header\n"); exit(1);
 		}
@@ -184,32 +185,35 @@ void put(int sd, char *file_name){
  
  
 void *option(void *sd){
-	printf("in option\n");
+ 
    int len=0, *fd;
  
    char buff[11];
    char *pl_buff;
    struct message_s REQUEST;
    fd=(int*)sd;
+printf("in option\n");
    //printf("fd = %d\n",*fd);
-   if((len=recvn(*(int*)sd,buff, 10))<0){
+   if((len=recvn(*fd,buff, 10))<0){
    		printf("receive error: %s (Errno:%d)\n", strerror(errno),errno); exit(0);
    }
+
    memcpy(&REQUEST, buff, 10);
+REQUEST.length = ntohl(REQUEST.length);
+printf("REQUEST recved: %d\n",REQUEST.length);
+        printf("REQUEST.protocol:%s   %d\n",REQUEST.protocol,memcmp(&REQUEST.protocol,"myftp",5) == 0);
+        printf("REQUEST.type: %x\n",REQUEST.type);
+        printf("REQUEST.length:%d %d\n",REQUEST.length,len);
    if(REQUEST.length > 10) {
+printf("inside??\n");
    		pl_buff = malloc(sizeof(char) * (REQUEST.length-10));
 		if((len=recvn(*(int*)sd, pl_buff, REQUEST.length-10))<0){
 			printf("receive error: %s (Errno:%d)\n", strerror(errno),errno); exit(0);
    		}
    }
-   
-   //printf("\nbuff: %s\n\n",buff);
- 
-   // printf("heyyyyy???\n");
-	printf("REQUEST.protocol:%s   %d\n",REQUEST.protocol,memcmp(&REQUEST.protocol,"myftp",5) == 0);
-	printf("REQUEST.type: %d\n",REQUEST.type==0xA1);
-	printf("REQUEST.length:%d %d\n",REQUEST.length,len);
- 
+   printf("outside\n");
+   printf("\nbuff: %s\n\n",buff);
+
    if(memcmp(&REQUEST.protocol,"myftp",5)==0 && REQUEST.type == 0xA1){ //list
    		list(*fd);
    }
@@ -254,10 +258,9 @@ void main_loop(unsigned short port)
  
    memset(&addr, 0, sizeof(struct sockaddr_in));
    addr.sin_family = AF_INET;
-//    addr.sin_addr.s_addr = htonl(INADDR_ANY);
-//    addr.sin_port = htons(port);
-   addr.sin_addr.s_addr = (INADDR_ANY);
-   addr.sin_port = (port);
+   addr.sin_addr.s_addr = htonl(INADDR_ANY);
+   addr.sin_port = htons(port);
+ 
    // After the setup has been done, invoke bind()
  
    if(bind(fd, (struct sockaddr *) &addr, sizeof(addr)) == -1){
@@ -282,11 +285,10 @@ void main_loop(unsigned short port)
             continue;
         }
         printf("accept_fd[%d] = %d\n",i, accept_fd[i]);
-        if(pthread_create(&thread[i], NULL, option, &accept_fd[i]) != 0){
+        if(pthread_create(&thread[i], NULL, option, &accept_fd[i])!=0){
             perror("pthread error");
             exit(1);
         }
-		
         i++;
    }
 }
