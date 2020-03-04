@@ -20,7 +20,7 @@ void list(int sd){
    LIST_REQUEST.length = ntohl(10);
    char *buff;
    int len=0;
-  printf("list sending\n");
+   //printf("list sending\n");
    if((len=sendn(sd,(void*)&LIST_REQUEST,10))<0){ //send LIST_REQUEST
    	printf("Send Error: %s (Errno:%d)\n",strerror(errno),errno);
    	exit(0);
@@ -29,19 +29,19 @@ void list(int sd){
  
    buff = malloc(sizeof(char)*BATCH_SIZE); //a block size of 1024, transmit data per block of 1024
    memset(buff, '\0', sizeof(buff));
-printf("list waiting recv\n"); 
+   //printf("list waiting recv\n"); 
    if((len=recvn(sd,buff, 10))<0){ //recv LIST_REPLY
    	printf("receive error: %s (Errno:%d)\n", strerror(errno),errno);
    	exit(0);
    }
-   printf("[%c %c %c]\n",buff[10],buff[11],buff[12]);
-   printf("list recv\n");
+  //printf("[%c %c %c]\n",buff[10],buff[11],buff[12]);
+   //printf("list recv\n");
    memcpy(&LIST_REPLY, buff, 10);
-   LIST_REPLY.length = htonl(LIST_REPLY.length);
+   LIST_REPLY.length = ntohl(LIST_REPLY.length);
    //printf("buff: %s\n\n",buff);
-   printf("LIST_REPLY.protocol: %s vs myftp\n",LIST_REPLY.protocol);
-   printf("LIST_REPLY.type: %x vs 0xA2\n",LIST_REPLY.type);
-   printf("LIST_REPLY.length: %d vs %d\n",LIST_REPLY.length,len);
+   //printf("LIST_REPLY.protocol: %s vs myftp\n",LIST_REPLY.protocol);
+   //printf("LIST_REPLY.type: %x vs 0xA2\n",LIST_REPLY.type);
+   //printf("LIST_REPLY.length: %d vs %d\n",LIST_REPLY.length,len);
  
    if(memcmp(LIST_REPLY.protocol,"myftp",5) == 0 && LIST_REPLY.type == 0xA2){
 	unsigned int pl_size = LIST_REPLY.length - 10;
@@ -56,7 +56,7 @@ printf("list waiting recv\n");
    }
    else{
 	printf("LIST_REPLY.type= %02x\n", LIST_REPLY.type);
-   	perror("No list reply\n");
+   	perror("No correct list reply\n");
    	exit(1);
    }
 }
@@ -102,6 +102,7 @@ void put(int sd, char *filename){
 		exit(0);
 	}
 	memcpy(&PUT_REPLY, buff, 10);
+	   PUT_REPLY.length = ntohl(PUT_REPLY.length);
 	//printf("PUT_REPLY.protocol:%s\n",PUT_REPLY.protocol);
 	//printf("PUT_REPLY.type:%x\n",PUT_REPLY.type);
 	//printf("PUT_REPLY.len:%d\n",PUT_REPLY.length);
@@ -165,7 +166,7 @@ void get(int sd, char* file_name) {
 		printf("Send Error: %s (Errno:%d)\n",strerror(errno),errno); exit(0);
 	}
 	memcpy(&GET_REPLY, buff, 10);
-	
+	GET_REPLY.length = ntohl(GET_REPLY.length);
 	// if(GET_REPLY.length == 0){
 	// 	perror("requested upload file doesn't exist: No such file or directory\n"); exit(1);
 	// }
@@ -192,6 +193,7 @@ void get(int sd, char* file_name) {
 				printf("Receive file Error: %s (Errno:%d)\n",strerror(errno),errno); exit(0);
 			}
 			memcpy(&FILE_DATA, buff, 10);
+			FILE_DATA.length = ntohl(FILE_DATA.length);
 			if(memcmp(FILE_DATA.protocol, PROTOCOL_CODE, 5) != 0) {
 				perror("Wrong protocol code in FILE_DATA header\n"); exit(1);
 			}
