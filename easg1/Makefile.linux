@@ -1,5 +1,5 @@
 CC = gcc
-LIB =
+LIB = -lcrypto -lssl
 
 all: server client
 

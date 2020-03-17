@@ -9,9 +9,59 @@
 #include <sys/socket.h>
 #include <netinet/in.h> // "struct sockaddr_in"
 #include <arpa/inet.h>  // "in_addr_t"
+
+#include <openssl/crypto.h>
+#include <openssl/ssl.h>
+#include <openssl/err.h>
+
 #include "myftp.h"
- 
-void list(int sd){
+
+#define RSA_CLIENT_CA_CERT      "./myftp-ca/cacert.pem"
+
+ SSL_CTX * sslctx_client() {
+	SSL_CTX         *ctx;
+	SSL_METHOD      *meth;
+	X509            *client_cert = NULL;
+
+	/*----------------------------------------------------------------*/
+	/* Register all algorithms */
+	OpenSSL_add_all_algorithms();
+
+	/* Load encryption & hashing algorithms for the SSL program */
+	SSL_library_init();
+
+	/* Load the error strings for SSL & CRYPTO APIs */
+	SSL_load_error_strings();
+
+	/* Create a SSL_METHOD structure (choose a SSL/TLS protocol version) */
+	meth = (SSL_METHOD*)TLSv1_method();
+
+	/* Create a SSL_CTX structure */
+	ctx = SSL_CTX_new(meth);
+
+	if (!ctx) {
+		ERR_print_errors_fp(stderr);
+		exit(1);
+	}
+
+	/* Load the RSA CA certificate into the SSL_CTX structure */
+	/* This will allow this client to verify the server's     */
+	/* certificate.                                           */
+ 	if (!SSL_CTX_load_verify_locations(ctx, RSA_CLIENT_CA_CERT, NULL)) {
+		ERR_print_errors_fp(stderr);
+		exit(1);
+	}
+
+	/* Set flag in context to require peer (server) certificate */
+	/* verification */
+
+	SSL_CTX_set_verify(ctx, SSL_VERIFY_PEER, NULL);
+	SSL_CTX_set_verify_depth(ctx, 1);
+
+	return ctx;
+}
+
+void list(SSL *ssl){
    struct message_s LIST_REQUEST; //to server
    struct message_s LIST_REPLY; //from server
    //strcpy(LIST_REQUEST.protocol,"myftp");
@@ -21,7 +71,7 @@ void list(int sd){
    char *buff;
    int len=0;
    //printf("list sending\n");
-   if((len=sendn(sd,(void*)&LIST_REQUEST,10))<0){ //send LIST_REQUEST
+   if((len=sendn(ssl,(void*)&LIST_REQUEST,10))<0){ //send LIST_REQUEST
    	printf("Send Error: %s (Errno:%d)\n",strerror(errno),errno);
    	exit(0);
    }
@@ -30,7 +80,7 @@ void list(int sd){
    buff = malloc(sizeof(char)*BATCH_SIZE); //a block size of 1024, transmit data per block of 1024
    memset(buff, '\0', sizeof(buff));
    //printf("list waiting recv\n"); 
-   if((len=recvn(sd,buff, 10))<0){ //recv LIST_REPLY
+   if((len=recvn(ssl,buff, 10))<0){ //recv LIST_REPLY
    	printf("receive error: %s (Errno:%d)\n", strerror(errno),errno);
    	exit(0);
    }
@@ -45,7 +95,7 @@ void list(int sd){
  
    if(memcmp(LIST_REPLY.protocol,"myftp",5) == 0 && LIST_REPLY.type == 0xA2){
 	unsigned int pl_size = LIST_REPLY.length - 10;
-	if((len=recvn(sd, buff, pl_size))<0){ 
+	if((len=recvn(ssl, buff, pl_size))<0){ 
 		printf("receive error: %s (Errno:%d)\n", strerror(errno),errno);
 		exit(0);
 	}
@@ -61,7 +111,7 @@ void list(int sd){
    }
 }
  
-void put(int sd, char *filename){
+void put(SSL *ssl, char *filename){
 	struct message_s PUT_REQUEST; //to server
 	struct message_s PUT_REPLY; //from server
 	struct message_s FILE_DATA; //to server
@@ -86,7 +136,7 @@ void put(int sd, char *filename){
 	strcpy(&buff[10], filename);
 	unsigned int len=0;
 
-	if((len=sendn(sd, (void*)buff, header_len))<0){ //send PUT_REQUEST
+	if((len=sendn(ssl, (void*)buff, header_len))<0){ //send PUT_REQUEST
 		printf("Send Error: %s (Errno:%d)\n",strerror(errno),errno);
 		exit(0);
 	}
@@ -97,7 +147,7 @@ void put(int sd, char *filename){
         }
 
 	// PUT_REPLY
-	if((len=recvn(sd, buff, 10))<0){ //recv PUT_REPLY
+	if((len=recvn(ssl, buff, 10))<0){ //recv PUT_REPLY
 		printf("receive error: %s (Errno:%d)\n", strerror(errno),errno);
 		exit(0);
 	}
@@ -127,14 +177,14 @@ void put(int sd, char *filename){
 		s = fread(&buff[10], 1, BATCH_SIZE, fp);
 		FILE_DATA.length = ntohl(s + 10);
 		memcpy(buff, &FILE_DATA, 10);
-		if( (len = sendn(sd, (void *)buff, s+10)) < 0) {
+		if( (len = sendn(ssl, (void *)buff, s+10)) < 0) {
 			printf("Send Error: %s (Errno:%d)\n",strerror(errno),errno);
 			exit(0);
 		}
 	}
 	FILE_DATA.length = ntohl(10);
 	memcpy(buff, &FILE_DATA, 10);
-	if( (len = sendn(sd, (void *)buff, 10)) < 0) {
+	if( (len = sendn(ssl, (void *)buff, 10)) < 0) {
 		printf("Send Error: %s (Errno:%d)\n",strerror(errno),errno);
 		exit(0);
 	}
@@ -142,7 +192,7 @@ void put(int sd, char *filename){
 	fclose(fp);
 }
  
-void get(int sd, char* file_name) {
+void get(SSL *ssl, char* file_name) {
 	struct message_s GET_REQUEST; //to server
 	int file_name_len = strlen(file_name);
 
@@ -155,14 +205,14 @@ void get(int sd, char* file_name) {
 	memcpy(buff, &GET_REQUEST, 10);
 	memcpy(&buff[10], (void *)file_name, file_name_len);
 	buff[10 + file_name_len] = '\0';
-	if( (len=sendn(sd, (void *)buff, 10 + file_name_len + 1) ) < 0 ) {
+	if( (len=sendn(ssl, (void *)buff, 10 + file_name_len + 1) ) < 0 ) {
 		printf("Send Error: %s (Errno:%d)\n",strerror(errno),errno); exit(0);
 	}
 	free(buff);
 
 	struct message_s GET_REPLY; //from server
 	buff = malloc(sizeof(char) * 10);
-	if( (len=recvn(sd, (void *)buff, 10) ) < 0 ) {
+	if( (len=recvn(ssl, (void *)buff, 10) ) < 0 ) {
 		printf("Send Error: %s (Errno:%d)\n",strerror(errno),errno); exit(0);
 	}
 	memcpy(&GET_REPLY, buff, 10);
@@ -189,7 +239,7 @@ void get(int sd, char* file_name) {
 		unsigned long long dl = 0;
 		char *showMessage = malloc(sizeof(char) *50);
 		while(1) {
-			if( (len=recvn(sd, (void *)buff, 10) ) < 0 ) {
+			if( (len=recvn(ssl, (void *)buff, 10) ) < 0 ) {
 				printf("Receive file Error: %s (Errno:%d)\n",strerror(errno),errno); exit(0);
 			}
 			memcpy(&FILE_DATA, buff, 10);
@@ -204,7 +254,7 @@ void get(int sd, char* file_name) {
 			if(file_data_len == 0) {
 				break;
 			}
-			if( (len=recvn(sd, (void *)buff, file_data_len) ) < 0 ) {
+			if( (len=recvn(ssl, (void *)buff, file_data_len) ) < 0 ) {
 				printf("Receive file Error: %s (Errno:%d)\n",strerror(errno),errno); exit(0);
 			}
 			dl += fwrite(buff, 1, len, fp);
@@ -230,8 +280,10 @@ void main_task(in_addr_t ip, unsigned short port, char* op, char* filename)
    int choice;
    struct sockaddr_in addr;
    unsigned int addrlen = sizeof(struct sockaddr_in);
- 
-   if((fd = socket(AF_INET, SOCK_STREAM, 0)) == -1){   // Create a TCP socket
+	
+ 	SSL_CTX *sslctx = sslctx_client();
+	SSL *ssl;
+   if((fd = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP)) == -1){   // Create a TCP socket
    	perror("socket()");
    	exit(1);
    }
@@ -250,25 +302,74 @@ void main_task(in_addr_t ip, unsigned short port, char* op, char* filename)
    	perror("connect()");
    	exit(1);
    }
- 
+
+ 	ssl = SSL_new(sslctx);
+	if (ssl == NULL) {
+		fprintf(stderr, "ERR: cannot create ssl structure\n");
+		exit(-1);
+	}
+
+	/* Assign the socket into the SSL structure */
+	SSL_set_fd(ssl, fd);
+	printf("SSL handshake starts\n");
+	if (SSL_connect(ssl) == -1) {
+		ERR_print_errors_fp(stderr);
+		exit(-1);
+	}
+	printf ("SSL connection using %s\n", SSL_get_cipher (ssl));
+
+	/* Get the server's certificate */
+	X509 *server_cert = SSL_get_peer_certificate(ssl);  
+	if (server_cert != NULL) {
+		printf ("Server certificate:\n");
+
+		char *str = X509_NAME_oneline(X509_get_subject_name(server_cert),0,0);
+		if (str == NULL) {
+			exit(-1);
+		}
+		printf ("\t subject: %s\n", str);
+		free (str);
+
+		str = X509_NAME_oneline(X509_get_issuer_name(server_cert),0,0);
+		if (str == NULL) {
+			exit(-1);
+		}
+		printf ("\t issuer: %s\n", str);
+		free(str);
+
+		X509_free (server_cert);
+	} else {
+		printf("The SSL server does not have certificate.\n");
+	} 
+
    if(strcmp(op,"list")==0){
-   		list(fd);
+   		list(ssl);
 		//printf("going into list");
    }
    else if(strcmp(op,"get")==0){
-   		get(fd, filename);
+   		get(ssl, filename);
 		//printf("going into get");
    }
    else if(strcmp(op,"put")==0){
-   		put(fd, filename);
+   		put(ssl, filename);
 		//printf("going into put");
    }
    else{
    	perror("neither list, get or put can be performed");
    	exit(1);
    }
- 
-   close(fd);  // Time to shut up
+	if(SSL_shutdown(ssl) == -1) {
+		ERR_print_errors_fp(stderr);
+		exit(-1);
+	}
+
+	// Time to shut up
+   if(close(fd) == -1) {
+		ERR_print_errors_fp(stderr);
+		exit(-1);
+	}
+	SSL_free(ssl);
+	SSL_CTX_free(sslctx);
 }
  
 int main(int argc, char **argv)
