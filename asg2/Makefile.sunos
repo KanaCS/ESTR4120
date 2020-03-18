@@ -1,5 +1,5 @@
 CC = gcc
-LIB = -lsocket -lnsl
+LIB = -lsocket -lnsl -lpthread -lisal
 
 all: server client
 
