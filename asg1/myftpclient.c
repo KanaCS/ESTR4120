@@ -67,19 +67,19 @@ void put(int sd, char *filename){
 	struct message_s FILE_DATA; //to server
 	
 	int notfound = 0;
-        FILE *fp = fopen(filename, "r");
-        if(fp==NULL){
-                perror("requested upload file doesn't exist");
-                notfound = 1; //exit(1);
-        }
+	FILE *fp = fopen(filename, "r");
+	if(fp==NULL){
+			perror("requested upload file doesn't exist");
+			notfound = 1; //exit(1);
+	}
 
 
 	// PUT_REQUEST
 	strcpy(PUT_REQUEST.protocol, PROTOCOL_CODE);
 	PUT_REQUEST.type = 0xC1;
 	int header_len = 10 + strlen(filename) + 1;
-        if(notfound == 1) PUT_REQUEST.length = ntohl(0);
-        else PUT_REQUEST.length = ntohl(header_len);
+	if(notfound == 1) PUT_REQUEST.length = ntohl(0);
+	else PUT_REQUEST.length = ntohl(header_len);
 	char *buff = malloc(sizeof(char) *(header_len));
 
 	memcpy(buff, &PUT_REQUEST, header_len);
@@ -91,10 +91,10 @@ void put(int sd, char *filename){
 		exit(0);
 	}
 	
-        if(notfound == 1){
-                free(buff);
-                exit(0);
-        }
+	if(notfound == 1){
+			free(buff);
+			exit(0);
+	}
 
 	// PUT_REPLY
 	if((len=recvn(sd, buff, 10))<0){ //recv PUT_REPLY
@@ -223,80 +223,160 @@ void get(int sd, char* file_name) {
 }
  
  
-void main_task(in_addr_t ip, unsigned short port, char* op, char* filename)
+void main_task(in_addr_t* ip, unsigned short* port, char* op, char* filename, int server_num)
 {
-   int buf;
-   int fd;
-   int choice;
-   struct sockaddr_in addr;
-   unsigned int addrlen = sizeof(struct sockaddr_in);
- 
-   if((fd = socket(AF_INET, SOCK_STREAM, 0)) == -1){   // Create a TCP socket
-   	perror("socket()");
-   	exit(1);
-   }
-   //printf("socket created");
- 
-   // Below 4 lines: Set up the destination with IP address and port number.
- 
-   memset(&addr, 0, sizeof(struct sockaddr_in));
-   addr.sin_family = AF_INET;
-   addr.sin_addr.s_addr = ip;
-   addr.sin_port = htons(port);
- 
-	// printf("%s len:%d\n", filename, strlen(filename));
-   if( connect(fd, (struct sockaddr *) &addr, addrlen) == -1 ) 	// connect to the destintation
-   {
-   	perror("connect()");
-   	exit(1);
-   }
- 
-   if(strcmp(op,"list")==0){
-   		list(fd);
-		//printf("going into list");
-   }
-   else if(strcmp(op,"get")==0){
-   		get(fd, filename);
-		//printf("going into get");
-   }
-   else if(strcmp(op,"put")==0){
-   		put(fd, filename);
+	int buf;
+	int fd[server_num];
+	int choice;
+	int count = server_num;
+	struct sockaddr_in addr;
+	unsigned int addrlen = sizeof(struct sockaddr_in);
+	fd_set *fds;
+	
+
+	if(strcmp(op,"put")==0){
+
+		int i = 0;
+		for(i=0; i<server_num; i++){
+
+			if((fd[i] = socket(AF_INET, SOCK_STREAM, 0)) == -1){   // Create a TCP socket
+				perror("socket()");
+			}
+			//printf("socket created");
+			
+			// Below 4 lines: Set up the destination with IP address and port number.
+			
+			memset(&addr, 0, sizeof(struct sockaddr_in));
+			addr.sin_family = AF_INET;
+			addr.sin_addr.s_addr = ip[i];
+			addr.sin_port = htons(port[i]);
+			
+				// printf("%s len:%d\n", filename, strlen(filename));
+			if( connect(fd[i], (struct sockaddr *) &addr, addrlen) == -1 ) 	// connect to the destintation
+			{
+				perror("connect()");
+				count --;
+			}
+			if(count == 0){
+				perror("no server is connected()");
+				exit(0);
+			}
+		}	
+		for (i=0; i<server_num ; i++){
+			FD_SET(fd[i], fds);
+		}
+		select(server_num, NULL, fds, NULL, NULL);
+		for (i=0; i<server_num ; i++){
+			if(FD_ISSET(fd[i],fds))
+				put(fd[i], filename);
+		}
 		//printf("going into put");
-   }
-   else{
-   	perror("neither list, get or put can be performed");
-   	exit(1);
-   }
- 
-   close(fd);  // Time to shut up
+
+	}
+	else{
+		int fd_found = -1;
+		int i = 0, found = 0;
+		for(i=0; i<server_num; i++){
+
+			if((fd[i] = socket(AF_INET, SOCK_STREAM, 0)) == -1){   // Create a TCP socket
+				perror("socket()");
+			}
+			//printf("socket created");
+			
+			// Below 4 lines: Set up the destination with IP address and port number.
+			
+			memset(&addr, 0, sizeof(struct sockaddr_in));
+			addr.sin_family = AF_INET;
+			addr.sin_addr.s_addr = ip[i];
+			addr.sin_port = htons(port[i]);
+			
+				// printf("%s len:%d\n", filename, strlen(filename));
+			if( connect(fd[i], (struct sockaddr *) &addr, addrlen) == -1 ) 	// connect to the destintation
+			{
+				perror("connect()");
+				found = 1;
+			}
+			if(found == 1){
+				fd_found = fd[i];
+				break;
+			}
+		}	
+		if(strcmp(op,"list")==0){
+			/****** TOCHANGE ******/
+			list(fd_found); 
+			//printf("going into list");
+		}
+		else if(strcmp(op,"get")==0){
+			/****** TOCHANGE ******/
+			get(fd_found, filename);
+			//printf("going into get");
+		}
+		else{
+			perror("neither list, get or put can be performed");
+			exit(1);
+		}
+	}
+	int i;
+	for (i=0; i<server_num ; i++){
+		close(fd);  // Time to shut up
+	}
 }
  
 int main(int argc, char **argv)
 {
-   in_addr_t ip;
-   unsigned short port;
+	unsigned long long block_size=0;
+    int n=0, k=0, lines=0;
+    in_addr_t *ip;
+    unsigned short *port;
+    char tmp[20], tmp_ip[20], tmp_port[20];
+   	if((argc != 4 && argc != 3) || (argc == 4 && strcmp(argv[2],"list")==0) || (argc == 3 && strcmp(argv[2],"list")!=0) )
+   	{
+   		fprintf(stderr, "Usage: %s clientconfig.txt <list|get|put> <file>\n", argv[0]);
+   		exit(1);
+   	}
+
+   	FILE *fp = fopen(argv[1], "r");
+	if(fp==NULL){
+			perror("clientconfig.txt is not found");
+			exit(1);
+	}
+
+    while( EOF != fscanf(fp, "%[^\n]\n", tmp) ){
+        lines += 1;
+    }
+
+    if(lines-3 <= 0){
+        perror("no available server is found");
+        exit(1);
+    }
+    ip = (in_addr_t*)malloc((lines-3)); port = (unsigned short*)malloc(sizeof(unsigned short)*(lines-3));
+	fseek(fp, 0, SEEK_SET);
+
+    fscanf(fp, "%[^\n]\n", tmp); n = atoll(tmp); 
+    fscanf(fp, "%[^\n]\n", tmp); k = atoll(tmp);
+    fscanf(fp, "%[^\n]\n", tmp); block_size = atoll(tmp); 
+    //printf("n:%d, k:%d, bs:%llu\n",n,k,block_size);
+
+    int i = 0;
+    while (EOF != fscanf(fp, "%[^:]", tmp_ip) && fread(tmp, 1, 1, fp)!=0 && EOF != fscanf(fp, "%[^\n]\n", tmp_port))
+    {
+        i++;
+        if ((ip[i] = inet_addr(tmp_ip)) == -1){
+			perror("inet_addr()");
+			exit(1);
+		}
+        port[i] = atoi(tmp_port); 
+        //printf(">%s %d\n",tmp_ip, port[i]);
+    }
  
-   if((argc != 5 && argc != 4) || (argc == 5 && strcmp(argv[3],"list")==0) || (argc == 4 && strcmp(argv[3],"list")!=0))
-   {
-   	fprintf(stderr, "Usage: %s [IP address] [port] [list|get|put] [filename]\n", argv[0]);
-   	exit(1);
-   }
- 
-   if( (ip = inet_addr(argv[1])) == -1 )
-   {
-   	perror("inet_addr()");
-   	exit(1);
-   }
- 
-   port = atoi(argv[2]);
-   if(argc == 4)
-   	main_task(ip, port, argv[3], NULL);
-   else
-   	main_task(ip, port, argv[3], argv[4]);
-   return 0;
+    if(argc == 3)
+   		main_task(ip, port, argv[2], NULL, lines-3);
+    else
+   		main_task(ip, port, argv[2], argv[3], lines-3);
+	    
+	fclose(fp);
+    free(ip);
+    free(port);
+    return 0;
 }
  
- 
- 
- 
-
