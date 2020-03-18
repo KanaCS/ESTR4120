@@ -248,8 +248,8 @@ void main_task(in_addr_t* ip, unsigned short* port, char* op, char* filename, in
 			
 			memset(&addr, 0, sizeof(struct sockaddr_in));
 			addr.sin_family = AF_INET;
-			addr.sin_addr.s_addr = ip;
-			addr.sin_port = htons(port);
+			addr.sin_addr.s_addr = ip[i];
+			addr.sin_port = htons(port[i]);
 			
 				// printf("%s len:%d\n", filename, strlen(filename));
 			if( connect(fd[i], (struct sockaddr *) &addr, addrlen) == -1 ) 	// connect to the destintation
@@ -265,7 +265,7 @@ void main_task(in_addr_t* ip, unsigned short* port, char* op, char* filename, in
 		for (i=0; i<server_num ; i++){
 			FD_SET(fd[i], fds);
 		}
-		select(server_num, NULL, &fds, NULL, NULL);
+		select(server_num, NULL, fds, NULL, NULL);
 		for (i=0; i<server_num ; i++){
 			if(FD_ISSET(fd[i],fds))
 				put(fd[i], filename);
@@ -287,8 +287,8 @@ void main_task(in_addr_t* ip, unsigned short* port, char* op, char* filename, in
 			
 			memset(&addr, 0, sizeof(struct sockaddr_in));
 			addr.sin_family = AF_INET;
-			addr.sin_addr.s_addr = ip;
-			addr.sin_port = htons(port);
+			addr.sin_addr.s_addr = ip[i];
+			addr.sin_port = htons(port[i]);
 			
 				// printf("%s len:%d\n", filename, strlen(filename));
 			if( connect(fd[i], (struct sockaddr *) &addr, addrlen) == -1 ) 	// connect to the destintation
@@ -296,8 +296,8 @@ void main_task(in_addr_t* ip, unsigned short* port, char* op, char* filename, in
 				perror("connect()");
 				found = 1;
 			}
-			if(found == 0){
-				fd_found = fd;
+			if(found == 1){
+				fd_found = fd[i];
 				break;
 			}
 		}	
@@ -316,8 +316,10 @@ void main_task(in_addr_t* ip, unsigned short* port, char* op, char* filename, in
 			exit(1);
 		}
 	}
-	
-	close(fd);  // Time to shut up
+	int i;
+	for (i=0; i<server_num ; i++){
+		close(fd);  // Time to shut up
+	}
 }
  
 int main(int argc, char **argv)
@@ -327,7 +329,7 @@ int main(int argc, char **argv)
     in_addr_t *ip;
     unsigned short *port;
     char tmp[20], tmp_ip[20], tmp_port[20];
-   	if((argc != 4 && argc != 3) || (argc == 4 && strcmp(argv[2],"list")==0) || (argc == 4 && strcmp(argv[2],"list")!=0) || strcmp(argv[1],"clientconfig.txt")==0)
+   	if((argc != 4 && argc != 3) || (argc == 4 && strcmp(argv[2],"list")==0) || (argc == 3 && strcmp(argv[2],"list")!=0) )
    	{
    		fprintf(stderr, "Usage: %s clientconfig.txt <list|get|put> <file>\n", argv[0]);
    		exit(1);
