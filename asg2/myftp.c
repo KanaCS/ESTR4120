@@ -109,21 +109,21 @@ void showLoaderBytes(char *pre, char *str, unsigned long long b) {
 	// printf("\n%d\n", strlen(pre));
 	memcpy(str, pre, strlen(pre));
 	if(i == 1) {
-		sprintf(&str[strlen(pre)], "%.2lf KB\0", tprev);
+		sprintf(&str[strlen(pre)], "%.2lf KB", tprev);
 		return;
 	}
 	if(i == 2) {
-		sprintf(&str[strlen(pre)], "%.2lf MB\0", tprev);
+		sprintf(&str[strlen(pre)], "%.2lf MB", tprev);
 		return;
 	}
 	if(i == 3) {
-		sprintf(&str[strlen(pre)], "%.2lf GB\0", tprev);
+		sprintf(&str[strlen(pre)], "%.2lf GB", tprev);
 		return;
 	}
 	if(i == 4) {
-		sprintf(&str[strlen(pre)], "%.2lf TB\0", tprev);
+		sprintf(&str[strlen(pre)], "%.2lf TB", tprev);
 		return;
 	}
-	sprintf(&str[strlen(pre)], "%llu Bytes\0", b);
+	sprintf(&str[strlen(pre)], "%llu Bytes", b);
 	return;
 }

@@ -156,9 +156,11 @@ void put(int sd, char *file_name){
 			printf("Send Error: %s (Errno:%d)\n",strerror(errno),errno); exit(0);
 		}
 		memcpy(&FILE_DATA, buff, 10);
-FILE_DATA.length = ntohl(FILE_DATA.length);
+		FILE_DATA.length = ntohl(FILE_DATA.length);
 		if(memcmp(FILE_DATA.protocol, PROTOCOL_CODE, 5) != 0) {
-			perror("Wrong protocol code in FILE_DATA header\n"); exit(1);
+			printf("\nDEBUG:");
+			printf("protocol: %s\n",FILE_DATA.protocol);
+			perror("...Wrong protocol code in FILE_DATA header\n"); exit(1);
 		}
 		if(FILE_DATA.type != 0xFF) {
 			perror("Wrong type code in FILE_DATA header\n"); exit(1);
