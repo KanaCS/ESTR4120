@@ -12,8 +12,10 @@
 #include <dirent.h>
 #include <pthread.h>
 #include "myftp.h"
- 
 #define DPATH "data/"
+
+int block_size = 4096, n = 5, id=0, k = 2;
+
 void list(int sd){
    int len=0, payload=0;//, *fd=(int*)sd;
    DIR *dir1;
@@ -298,13 +300,25 @@ void main_loop(unsigned short port)
 int main(int argc, char **argv)
 {
    unsigned short port;
- 
-   if(argc != 2){
-   	fprintf(stderr, "Usage: %s [port]\n", argv[0]);
+   char tmp[20];
+   	
+   if(argc != 2 || strcmp(argv[1],"serverconfig.txt")!=0){
+   	fprintf(stderr, "Usage: %s serverconfig.txt\n", argv[0]);
    	exit(1);
    }
- 
-   port = atoi(argv[1]);
+	
+   FILE *fp = fopen(argv[1], "r");
+   if(fp==NULL){
+	perror("serverconfig.txt is not found");
+	exit(1);
+   }
+
+    fscanf(fp, "%[^\n]\n", tmp); n = atoll(tmp); 
+    fscanf(fp, "%[^\n]\n", tmp); k = atoll(tmp);
+    fscanf(fp, "%[^\n]\n", tmp); id = atoll(tmp); 
+    fscanf(fp, "%[^\n]\n", tmp); block_size = atoll(tmp); 
+    fscanf(fp, "%[^\n]\n", tmp); port = atoi(tmp); 
+    //printf("n:%d, k:%d, bs:%llu\n",n,k,block_size);
  
    main_loop(port);
  
