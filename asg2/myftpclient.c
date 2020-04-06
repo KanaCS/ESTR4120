@@ -327,7 +327,7 @@ void main_task(in_addr_t* ip, unsigned short* port, char* op, char* filename, in
 		fseek(fp, 0, SEEK_END);
 		unsigned long long size = ftell(fp);
 		fseek(fp, 0, SEEK_SET);
-		
+printf("???\n");
 		unsigned long long req_batch = size / (block_size * k) + 1 , i = 0;
 		printf("start encode procedure\n");
 		//allocate space for matrix
@@ -343,6 +343,9 @@ void main_task(in_addr_t* ip, unsigned short* port, char* op, char* filename, in
 		printf("finish malloc stripe\n");
 		//each batch have k blocks reading from file
 		for(i = 0; i < req_batch; i++) {
+			printf("************************************\n");
+			printf("_______________i=%llu_________________\n",i);
+			printf("************************************\n");
 			//store blocks them into a stripe
 			for(int j=0; j<k; j++){
 				stripe->sid = j;
@@ -356,7 +359,7 @@ void main_task(in_addr_t* ip, unsigned short* port, char* op, char* filename, in
 			printf("finish encoding data\n");
 			//iomultiplex
 			int count = 0;
-			while(count!=server_num){
+			while(count<server_num-1){
 	 			FD_ZERO(&fds);
 				int max = fd[0];
 				for (int j=0; j<server_num ; j++){
@@ -367,7 +370,7 @@ void main_task(in_addr_t* ip, unsigned short* port, char* op, char* filename, in
 				select(max + 1, NULL, &fds, NULL, &tv);
 				printf("selected\n");
 				for (int j=0; j<server_num ; j++){
-					if(FD_ISSET(fd[i],&fds)){
+					if(FD_ISSET(fd[j],&fds)){
 						//deliver each block to each server
 						printf("into put: i:%d, fd[i]=%d\n",j,fd[j]);
 						int first,last;
@@ -376,6 +379,13 @@ void main_task(in_addr_t* ip, unsigned short* port, char* op, char* filename, in
 						else last=0;
 						if(i==0) first=1;
 						else first=0;
+						//char newfilename[60]="";
+						//strcat(newfilename, filename);
+						//strcat(newfilename,"_stripe_");
+						//char snum[200]; sprintf(snum,"%llu",i);
+						//strcat(newfilename,snum);
+						//printf("filename[%llu]%s\n",i,newfilename);
+						//printf("value of i:%llu, first:%d\n",i,first);
 						put(notfound, j, fd[j], filename, stripe, last, first);
 					}	
 				}
