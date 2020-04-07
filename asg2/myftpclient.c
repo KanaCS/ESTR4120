@@ -359,6 +359,8 @@ printf("???\n");
 			printf("finish encoding data\n");
 			//iomultiplex
 			int count = 0;
+			int *check_send = malloc(server_num*sizeof(int));
+			memset(check_sened, 0, sizeof(int));
 			while(count<server_num-1){
 	 			FD_ZERO(&fds);
 				int max = fd[0];
@@ -370,7 +372,7 @@ printf("???\n");
 				select(max + 1, NULL, &fds, NULL, &tv);
 				printf("selected\n");
 				for (int j=0; j<server_num ; j++){
-					if(FD_ISSET(fd[j],&fds)){
+					if(FD_ISSET(fd[j],&fds) && check_send[j]==0){
 						//deliver each block to each server
 						printf("into put: i:%d, fd[i]=%d\n",j,fd[j]);
 						int first,last;
@@ -386,6 +388,7 @@ printf("???\n");
 						//strcat(newfilename,snum);
 						//printf("filename[%llu]%s\n",i,newfilename);
 						//printf("value of i:%llu, first:%d\n",i,first);
+						check_sned[j]=1;
 						put(notfound, j, fd[j], filename, stripe, last, first);
 					}	
 				}
