@@ -360,7 +360,7 @@ printf("???\n");
 			//iomultiplex
 			int count = 0;
 			int *check_send = malloc(server_num*sizeof(int));
-			memset(check_sened, 0, sizeof(int));
+			memset(check_send, 0, sizeof(int));
 			while(count<server_num-1){
 	 			FD_ZERO(&fds);
 				int max = fd[0];
@@ -388,7 +388,7 @@ printf("???\n");
 						//strcat(newfilename,snum);
 						//printf("filename[%llu]%s\n",i,newfilename);
 						//printf("value of i:%llu, first:%d\n",i,first);
-						check_sned[j]=1;
+						check_send[j]=1;
 						put(notfound, j, fd[j], filename, stripe, last, first);
 					}	
 				}
