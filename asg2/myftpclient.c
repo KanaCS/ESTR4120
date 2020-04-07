@@ -360,7 +360,7 @@ printf("???\n");
 			//iomultiplex
 			int count = 0;
 			int *check_send = malloc(server_num*sizeof(int));
-			memset(check_send, 0, sizeof(int));
+			memset(check_send, 0, server_num*sizeof(int));
 			while(count<server_num-1){
 	 			FD_ZERO(&fds);
 				int max = fd[0];

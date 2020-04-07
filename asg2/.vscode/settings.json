@@ -1,5 +1,6 @@
 {
     "files.associations": {
-        "myftp.h": "c"
+        "myftp.h": "c",
+        "string.h": "c"
     }
 }
