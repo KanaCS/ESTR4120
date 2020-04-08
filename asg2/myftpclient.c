@@ -22,6 +22,7 @@ typedef struct stripe
         unsigned char **blocks;
         unsigned char **parity_blocks;
 } Stripe;
+
 uint8_t* encode_data(int n, int k, Stripe *stripe, size_t block_size){
     //Generate encode matrix
         gf_gen_rs_matrix(stripe->encode_matrix, n, k);
@@ -90,7 +91,7 @@ void list(int sd){
    }
 }
  
-void put(int notfound, int num, int sd, char *filename, Stripe* stripe, int last, int first){
+void put(int notfound, int num, int sd, char *filename, Stripe* stripe, int last, int first, unsigned long long size){
 	struct message_s PUT_REQUEST; //to server
 	struct message_s PUT_REPLY; //from server
 	struct message_s FILE_DATA; //to server
@@ -164,6 +165,13 @@ void put(int notfound, int num, int sd, char *filename, Stripe* stripe, int last
 		memcpy(buff, &FILE_DATA, 10);
 		//printf("sendn file\n");
 		if( (len = sendn(sd, (void *)buff, 10)) < 0) {
+			printf("Send Error: %s (Errno:%d)\n",strerror(errno), errno);
+			exit(0);
+		}
+		char s_size[20]; memset(s_size, '\0', sizeof(s_size));
+		sprintf(s_size, "%llu", size);
+		memcpy(buff, &s_size, sizeof(s_size));
+		if( (len = sendn(sd, (void *)buff, sizeof(s_size))) < 0) {
 			printf("Send Error: %s (Errno:%d)\n",strerror(errno), errno);
 			exit(0);
 		}
@@ -283,15 +291,14 @@ void main_task(in_addr_t* ip, unsigned short* port, char* op, char* filename, in
 		addr.sin_family = AF_INET;
 		addr.sin_addr.s_addr = ip[i];
 		addr.sin_port = htons(port[i]);
-		
 			// printf("%s len:%d\n", filename, strlen(filename));
 		if( connect(fd[i], (struct sockaddr *) &addr, addrlen) == -1 ) 	// connect to the destintation
 		{
 			perror("connect()");
 			if(found!=0) count--;
+			found=0;
 		}
 		else found = 1;
-
 		if(strcmp(op,"list")==0){
 			if(found == 1){
 				list(fd[i]); 
@@ -327,7 +334,7 @@ void main_task(in_addr_t* ip, unsigned short* port, char* op, char* filename, in
 		fseek(fp, 0, SEEK_END);
 		unsigned long long size = ftell(fp);
 		fseek(fp, 0, SEEK_SET);
-printf("???\n");
+
 		unsigned long long req_batch = size / (block_size * k) + 1 , i = 0;
 		printf("start encode procedure\n");
 		//allocate space for matrix
@@ -389,7 +396,7 @@ printf("???\n");
 						//printf("filename[%llu]%s\n",i,newfilename);
 						//printf("value of i:%llu, first:%d\n",i,first);
 						check_send[j]=1;
-						put(notfound, j, fd[j], filename, stripe, last, first);
+						put(notfound, j, fd[j], filename, stripe, last, first, size);
 					}	
 				}
 			}

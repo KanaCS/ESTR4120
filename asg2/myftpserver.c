@@ -5,6 +5,7 @@
 #include <signal.h>
 #include <sys/time.h>
 #include <sys/types.h>
+#include <sys/stat.h>
 #include <sys/socket.h>
 #include <netinet/in.h> // "struct sockaddr_in"
 #include <arpa/inet.h>  // "in_addr_t"
@@ -24,7 +25,6 @@ void list(int sd){
    char *buff = malloc(sizeof(char)*1024);
    memset(buff, '\0', sizeof(char)*1024);
  
- 
    if((dir1 = opendir(DPATH))==NULL){
 	   perror("dir doesnt exist");
 	   exit(0);
@@ -32,9 +32,11 @@ void list(int sd){
    printf("====================\n");
    while((ptr = readdir(dir1)) != NULL){
    	printf("d_name: %s\n",ptr->d_name);
-   	strcpy(&buff[10 + payload], ptr->d_name);
-   	payload += strlen(ptr->d_name)+1;
-   	buff[10 + payload - 1] = '\n';
+	if(strcmp(ptr->d_name, "metadata")!=0){
+   		strcpy(&buff[10 + payload], ptr->d_name);
+   		payload += strlen(ptr->d_name)+1;
+   		buff[10 + payload - 1] = '\n';
+	}
    }
    printf("====================\n");
    closedir(dir1);
@@ -146,7 +148,6 @@ void put(int sd, char *file_name){
 	PUT_REPLY.type = 0xC2;
 	PUT_REPLY.length = ntohl(10);
 	memcpy(buff, &PUT_REPLY, 10);
-
 	if((len=sendn(sd,(void*)buff, 10))<0){
 		printf("Send Error: %s (Errno:%d)\n",strerror(errno),errno);
 		exit(0);
@@ -161,9 +162,7 @@ void put(int sd, char *file_name){
 		memcpy(&FILE_DATA, buff, 10);
 		FILE_DATA.length = ntohl(FILE_DATA.length);
 		if(memcmp(FILE_DATA.protocol, PROTOCOL_CODE, 5) != 0) {
-			printf("\nDEBUG:");
-			printf("protocol: %s\n",FILE_DATA.protocol);
-			perror("...Wrong protocol code in FILE_DATA header\n"); exit(1);
+			perror("Wrong protocol code in FILE_DATA header\n"); exit(1);
 		}
 		if(FILE_DATA.type != 0xFF) {
 			perror("Wrong type code in FILE_DATA header\n"); exit(1);
@@ -171,6 +170,18 @@ void put(int sd, char *file_name){
 		file_data_len = FILE_DATA.length - 10;
 		// printf("RECEIVING %d BYTES BATCH\n", file_data_len);
 		if(file_data_len == 0) {
+			//recv metadata
+			if( (len=recvn(sd, (void *)buff, 20) ) < 0 ) {
+				printf("Send Error: %s (Errno:%d)\n",strerror(errno),errno); exit(0);
+			}
+			//store in metafile
+			char path[100]; memset(path, '\0', sizeof(path));
+			mkdir("data/metadata", 0700);
+			strcpy(path, "data/metadata/");
+			strcat(path, file_name);
+			FILE *pt = fopen(path, "w+");
+			fprintf(pt,"%s\n",buff);
+			fclose(pt);
 			break;
 		}
 		if( (len=recvn(sd, (void *)buff, file_data_len) ) < 0 ) {
