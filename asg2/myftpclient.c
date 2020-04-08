@@ -382,6 +382,7 @@ int get(int sd, char* file_name, int *ser_id_ptr) {  // return filesize
 			}
 		}
 		server_id = atoi(num_str);
+		printf("GET_REPLY length: %u\n", GET_REPLY.length);
 		printf("GET_REPLY ser_id: %s\n", num_str);
 		int j = 0;
 		i++;
