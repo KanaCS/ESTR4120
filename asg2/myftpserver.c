@@ -81,10 +81,11 @@ void get(int sd, char *file_name) {
    else { // file found, send GET_REPLY and send file
    	// GET_REPLY
    	int len = 0;
-   	struct message_s GET_REPLY; memcpy(GET_REPLY.protocol,"myftp", 5); GET_REPLY.type = 0xB2; GET_REPLY.length = ntohl(10);
-   	char *buff = malloc(sizeof(char) * 10);
+   	struct message_s GET_REPLY; memcpy(GET_REPLY.protocol,"myftp", 5); GET_REPLY.type = 0xB2; GET_REPLY.length = ntohl(14);
+   	char *buff = malloc(sizeof(char) * 10 + sizeof(int));
    	memcpy(buff, &GET_REPLY, 10);
-   	if( (len = sendn(sd, (void *)buff, 10)) < 0) {
+	memcpy(buff + 10, &id, 4);
+   	if( (len = sendn(sd, (void *)buff, 14)) < 0) {
        	printf("Send Error: %s (Errno:%d)\n",strerror(errno),errno);
        	exit(0);
    	}
