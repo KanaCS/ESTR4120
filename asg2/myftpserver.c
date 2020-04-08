@@ -116,8 +116,19 @@ void get(int sd, char *file_name) {
    	strcpy(file_path, DPATH);
    	strcpy(&file_path[strlen(DPATH)], file_name);
    	FILE *fd = fopen(file_path, "r");
-  
-  
+	
+	fseek(fd, 0, SEEK_END);
+   	unsigned long long file_len = ftell(fd);
+   	fseek(fd, 0, SEEK_SET);
+
+   	int s = 0;
+   	buff = malloc(sizeof(char)* (BATCH_SIZE + 10));
+   	unsigned long long req_batch = file_len / BATCH_SIZE + 1, i = 0;
+   	struct message_s FILE_DATA; strcpy(FILE_DATA.protocol,"myftp"); FILE_DATA.type = 0xFF;
+   	for(i = 0; i < req_batch; i++) {
+       	s = fread(&buff[10], 1, BATCH_SIZE, fd);
+       	FILE_DATA.length = ntohl(s+10);
+       	memcpy(buff, &FILE_DATA, 10);
        	if( (len = sendn(sd, (void *)buff, s+10)) < 0) {
            	printf("Send Error: %s (Errno:%d)\n",strerror(errno),errno);
            	exit(0);
