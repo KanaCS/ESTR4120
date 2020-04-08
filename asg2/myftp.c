@@ -98,7 +98,7 @@ int recvn(int sd, void *buf, int buf_len){
 	return buf_len;
 }
 
-void showLoaderBytes(char *pre, char *str, unsigned long long b, int server_id) {
+void showBytesMultiServer(char *pre, char *str, unsigned long long b, int server_id) {
 	double t = (double)b /1024,  tprev = (double)b;
 	int i = 0;
 	while(tprev >= 1024) {
@@ -128,7 +128,7 @@ void showLoaderBytes(char *pre, char *str, unsigned long long b, int server_id) 
 	return;
 }
 
-void showRestoredBytes(char *pre, char *str, unsigned long long b) {
+void showBytes(char *pre, char *str, unsigned long long b) {
 	double t = (double)b /1024,  tprev = (double)b;
 	int i = 0;
 	while(tprev >= 1024) {

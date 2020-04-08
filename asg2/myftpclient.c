@@ -166,7 +166,7 @@ void decode_file(int *effective_ids, char *filename, unsigned long long filesize
 			written_bytes += non_full_block_size;
 			if(written_bytes == filesize) {
 				char status_str[100];
-				showRestoredBytes("Successfully restored file of size ", status_str, filesize);
+				showBytes("Successfully restored file of size ", status_str, filesize);
 				printf("%s\n", status_str);
 			}
 			else {

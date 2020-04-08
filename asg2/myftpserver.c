@@ -82,12 +82,30 @@ void get(int sd, char *file_name) {
    }
    else { // file found, send GET_REPLY and send file
    	// GET_REPLY
-   	int len = 0;
-   	struct message_s GET_REPLY; memcpy(GET_REPLY.protocol,"myftp", 5); GET_REPLY.type = 0xB2; GET_REPLY.length = ntohl(14);
-   	char *buff = malloc(sizeof(char) * 10 + sizeof(int));
+   	int len = 0, num_str_len = 0;
+	char meta_file_path[100];
+	strcpy(meta_file_path, "./metadata/");
+	strcpy(meta_file_path + 11, file_name);
+	FILE *meta_fp = fopen(meta_file_path, "r"); 
+	char *buff = malloc(sizeof(char) * 50);
+	char num_str[50],c;
+	// put id into buff[10]
+	
+	num_str_len = sprintf(num_str, "%d ", id);
+	strcpy(buff + 10, num_str);
+
+	// put filesize into buff[10+sth]
+	int i = 0;
+	while((c = fgetc(meta_fp)) != EOF) {
+		num_str[i] = c;
+	}
+	num_str[i] = '\0';
+	strcpy(buff + 10 + num_str_len, num_str);
+
+	struct message_s GET_REPLY; memcpy(GET_REPLY.protocol,"myftp", 5); GET_REPLY.type = 0xB2; GET_REPLY.length = ntohl(10+num_str_len+i);
    	memcpy(buff, &GET_REPLY, 10);
-	memcpy(buff + 10, &id, 4);
-   	if( (len = sendn(sd, (void *)buff, 14)) < 0) {
+
+   	if( (len = sendn(sd, (void *)buff, 10+num_str_len+i)) < 0) {
        	printf("Send Error: %s (Errno:%d)\n",strerror(errno),errno);
        	exit(0);
    	}
@@ -98,19 +116,8 @@ void get(int sd, char *file_name) {
    	strcpy(file_path, DPATH);
    	strcpy(&file_path[strlen(DPATH)], file_name);
    	FILE *fd = fopen(file_path, "r");
- 
-   	fseek(fd, 0, SEEK_END);
-   	unsigned long long file_len = ftell(fd);
-   	fseek(fd, 0, SEEK_SET);
- 
-   	int s = 0;
-   	buff = malloc(sizeof(char)* (BATCH_SIZE + 10));
-   	unsigned long long req_batch = file_len / BATCH_SIZE + 1, i = 0;
-   	struct message_s FILE_DATA; strcpy(FILE_DATA.protocol,"myftp"); FILE_DATA.type = 0xFF;
-   	for(i = 0; i < req_batch; i++) {
-       	s = fread(&buff[10], 1, BATCH_SIZE, fd);
-       	FILE_DATA.length = ntohl(s+10);
-       	memcpy(buff, &FILE_DATA, 10);
+  
+  
        	if( (len = sendn(sd, (void *)buff, s+10)) < 0) {
            	printf("Send Error: %s (Errno:%d)\n",strerror(errno),errno);
            	exit(0);
@@ -189,17 +196,15 @@ void put(int sd, char *file_name){
 		}
 
 		dl += fwrite(buff, 1, len, fp);
-		showLoaderBytes("Received ", message_str, dl);
+		showBytes("Received ", message_str, dl);
 		printf("\r%s", message_str);
 	}
 	printf("\n");
 	free(message_str);
 	free(buff);
 	fclose(fp);
-
 }
- 
- 
+
 void *option(void *sd){
  
    int len=0, *fd;
