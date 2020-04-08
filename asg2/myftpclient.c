@@ -149,6 +149,7 @@ void decode_file(int *effective_ids, char *filename, unsigned long long filesize
 				}
 			}
 		}
+		printf("error_count: %d\n", err_count);
 		printf("err_row_inds:");
 		for(i = 0; i < n-k; i++) {
 			printf(" %d", err_row_inds[i]);
