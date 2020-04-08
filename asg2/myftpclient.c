@@ -68,7 +68,7 @@ void decode_file(int *effective_ids, char *filename, unsigned long long filesize
 			exit(-1);
 		}
 		char id_str[10];
-		int id_len = sprinf(&id_str, "%d", effective_ids[i]);
+		int id_len = sprintf(&id_str, "%d", effective_ids[i]);
 		char filepath[filename_len+id_len+2];
 		strcpy(filepath, filename);
 		strcpy(filepath+filename_len, "_");
