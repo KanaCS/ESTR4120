@@ -123,7 +123,7 @@ void get(int sd, char *file_name) {
 
    	int s = 0;
    	buff = malloc(sizeof(char)* (BATCH_SIZE + 10));
-   	unsigned long long req_batch = file_len / BATCH_SIZE + 1, i = 0;
+   	unsigned long long req_batch = file_len / BATCH_SIZE + 1;
    	struct message_s FILE_DATA; strcpy(FILE_DATA.protocol,"myftp"); FILE_DATA.type = 0xFF;
    	for(i = 0; i < req_batch; i++) {
        	s = fread(&buff[10], 1, BATCH_SIZE, fd);
