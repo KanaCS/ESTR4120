@@ -45,7 +45,6 @@ void decode_file(int *effective_ids, char *filename, unsigned long long filesize
 	uint8_t *error_matrix = malloc(sizeof(uint8_t) * (k*k));
 	uint8_t *invert_matrix = malloc(sizeof(uint8_t) * (k*k));
 	uint8_t *decode_matrix = malloc(sizeof(uint8_t) * (k*k));
-	uint8_t *recovered_matrix = malloc(sizeof(uint8_t) * (k*k));
 
 	Stripe *stripe=malloc(sizeof(Stripe));
 	stripe->encode_matrix = malloc(sizeof(uint8_t)*(n*k));
@@ -113,7 +112,6 @@ void decode_file(int *effective_ids, char *filename, unsigned long long filesize
 	//Generates the expanded tables needed for fast encoding
 	ec_init_tables(k, err_count, decode_matrix, stripe->table);
 
-	//Actually generated the error correction codes
 	uint8_t** file_data = (uint8_t**)malloc(sizeof(uint8_t*)*n);
 	for(i=0; i<n; i++) {
 		file_data[i] = (uint8_t*)malloc(sizeof(uint8_t)*block_size);
@@ -151,6 +149,16 @@ void decode_file(int *effective_ids, char *filename, unsigned long long filesize
 				}
 			}
 		}
+		printf("err_row_inds:");
+		for(i = 0; i < n-k; i++) {
+			printf(" %d", err_row_inds[i]);
+		}
+		printf("\n");
+		printf("restore_order:");
+		for(i = 0; i < k; i++) {
+			printf(" %d", restore_order[i]);
+		}
+		printf("\n");
 		if(num_of_strip > 1) {
 			for(i = 0; i < k; i++) {
 				fwrite(&file_data[restore_order[i]], 1, block_size, restore_fp);
