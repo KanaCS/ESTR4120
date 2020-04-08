@@ -62,7 +62,7 @@ void decode_file(int *effective_ids, char *filename, unsigned long long filesize
 	FILE *fp[k];
 	FILE *restore_fp;
 	for(i = 0; i < k; i++) {
-		printf("decode_file filename have len %d\n", strlen(filename));
+		printf("decode_file filename have len %d\n", (int)strlen(filename));
 		int filename_len = strlen(filename);
 		if(filename_len <1) {
 			exit(-1);
@@ -153,16 +153,16 @@ void decode_file(int *effective_ids, char *filename, unsigned long long filesize
 		}
 		if(num_of_strip > 1) {
 			for(i = 0; i < k; i++) {
-				fwrite(restore_fp, 1, block_size, &file_data[restore_order[i]]);
+				fwrite(&file_data[restore_order[i]], 1, block_size, restore_fp);
 			}
 			written_bytes += block_size*k;
 		}
 		else { // last strip
 			for(i = 0; i < non_full_block_ind; i++) {
-				fwrite(restore_fp, 1, block_size, &file_data[restore_order[i]]);
+				fwrite(&file_data[restore_order[i]], 1, block_size, restore_fp);
 			}
 			written_bytes += block_size*non_full_block_ind;
-			fwrite(restore_fp, 1, non_full_block_size, &file_data[restore_order[i]]);
+			fwrite(&file_data[restore_order[i]], 1, non_full_block_size, restore_fp);
 			written_bytes += non_full_block_size;
 			if(written_bytes == filesize) {
 				char status_str[100];
@@ -404,7 +404,7 @@ int get(int sd, char* file_name, int *ser_id_ptr) {  // return filesize
 		*ser_id_ptr = server_id;
 		strcpy(file_path, file_name);
 		strcpy(file_path+file_name_len, "_");
-		strcpy(file_path+file_name_len+1, &ser_id_str);
+		strcpy(file_path+file_name_len+1, ser_id_str);
 		FILE *fp = fopen(file_path, "w");
 		unsigned long long dl = 0;
 		char *showMessage = malloc(sizeof(char) *100);
@@ -431,7 +431,7 @@ int get(int sd, char* file_name, int *ser_id_ptr) {  // return filesize
 				printf("Receive file Error: %s (Errno:%d)\n",strerror(errno),errno); exit(0);
 			}
 			dl += fwrite(buff, 1, len, fp);
-			showLoaderBytes("Downloaded ", showMessage, dl, server_id);
+			showBytesMultiServer("Downloaded ", showMessage, dl, server_id);
 			printf("\r%s", showMessage);
 		}
 		printf("\n");
