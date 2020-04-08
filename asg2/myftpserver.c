@@ -232,10 +232,10 @@ void *option(void *sd){
 
    memcpy(&REQUEST, buff, 10);
    REQUEST.length = ntohl(REQUEST.length);
-   //printf("REQUEST recved: %d\n",REQUEST.length);
-   //printf("REQUEST.protocol:%s   %d\n",REQUEST.protocol,memcmp(&REQUEST.protocol,"myftp",5) == 0);
-    //printf("REQUEST.type: %x\n",REQUEST.type);
-    //printf("REQUEST.length:%d %d\n",REQUEST.length,len);
+   printf("REQUEST recved: %d\n",REQUEST.length);
+   printf("REQUEST.protocol:%s   %d\n",REQUEST.protocol,memcmp(&REQUEST.protocol,"myftp",5) == 0);
+    printf("REQUEST.type: %x\n",REQUEST.type);
+    printf("REQUEST.length:%d %d\n",REQUEST.length,len);
    if(REQUEST.length > 10) {
    		pl_buff = malloc(sizeof(char) * (REQUEST.length-10));
 		if((len=recvn(*(int*)sd, pl_buff, REQUEST.length-10))<0){
