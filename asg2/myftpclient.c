@@ -20,27 +20,178 @@ typedef struct stripe
         uint8_t *encode_matrix;
         uint8_t *table;
         unsigned char **blocks;
-        unsigned char **parity_blocks;
 } Stripe;
 
 uint8_t* encode_data(int n, int k, Stripe *stripe, size_t block_size){
     //Generate encode matrix
-        gf_gen_rs_matrix(stripe->encode_matrix, n, k);
+	gf_gen_rs_matrix(stripe->encode_matrix, n, k);
 
-        //Generates the expanded tables needed for fast encoding
-        ec_init_tables(k, n-k, &stripe->encode_matrix[k*k], stripe->table);
+	//Generates the expanded tables needed for fast encoding
+	ec_init_tables(k, n-k, &stripe->encode_matrix[k*k], stripe->table);
 
-        //Actually generated the error correction codes
-        unsigned char** blocks_data = malloc(sizeof(unsigned char**)*n);
-        for(int i=0; i<n; i++){
-                blocks_data[i] = stripe->blocks[i];
-        }
+	//Actually generated the error correction codes
+	unsigned char** blocks_data = malloc(sizeof(unsigned char**)*n);
+	for(int i=0; i<n; i++){
+			blocks_data[i] = stripe->blocks[i];
+	}
 
-        ec_encode_data(block_size, k, n-k, stripe->table, blocks_data, &blocks_data[k]);
+	ec_encode_data(block_size, k, n-k, stripe->table, blocks_data, &blocks_data[k]);
 
-        return stripe->encode_matrix;
+	return stripe->encode_matrix;
 }
- 
+
+void decode_file(int *effective_ids, char *filename, unsigned long long filesize) {
+	int i, j;
+	uint8_t *error_matrix = malloc(sizeof(uint8_t) * (k*k));
+	uint8_t *invert_matrix = malloc(sizeof(uint8_t) * (k*k));
+	uint8_t *decode_matrix = malloc(sizeof(uint8_t) * (k*k));
+	uint8_t *recovered_matrix = malloc(sizeof(uint8_t) * (k*k));
+
+	Stripe *stripe=malloc(sizeof(Stripe));
+	stripe->encode_matrix = malloc(sizeof(uint8_t)*(n*k));
+	stripe->table = malloc(sizeof(uint8_t)*32*k*(n-k));
+	stripe->blocks = (uint8_t**)malloc(n * sizeof(uint8_t*));
+
+	//Generate encode matrix
+	gf_gen_rs_matrix(stripe->encode_matrix, n, k);
+	
+
+	for(i=0;i<n;i++){
+		stripe->blocks[i] = (uint8_t*)malloc(block_size * sizeof(uint8_t));
+	}
+	FILE *fp[k];
+	FILE *restore_fp;
+	for(i = 0; i < k; i++) {
+		printf("decode_file filename have len %d\n", strlen(filename));
+		int filename_len = strlen(filename);
+		if(filename_len <1) {
+			exit(-1);
+		}
+		char id_str[10];
+		int id_len = sprinf(&id_str, "%d", effective_ids[i]);
+		char filepath[filename_len+id_len+2];
+		strcpy(filepath, filename);
+		strcpy(filepath+filename_len, "_");
+		strcpy(filepath+filename_len+1, id_str);
+		fp[i] = fopen(filepath, "r");
+	}
+	restore_fp = fopen(filename, "w");
+	fseek(fp[0], 0, SEEK_END);
+	unsigned long long f_size = ftell(fp[0]);
+	fseek(fp[0], 0, SEEK_SET);
+
+	int status[n];
+	for(i = 0; i < n; i++) { status[i] = 0;}
+	for(i = 0; i < k; i++) { status[effective_ids[i]-1] = 2;}
+	// setup error matrix
+	for(i = 0; i < k; i++) {
+		int r;
+		for(j = 0; j < n; j++) {
+			if(status[j] == 2) { r = j; status[j] = 1; break;}
+		}
+		for(j = 0; j < k; j++) {
+			error_matrix[i*k + j] = stripe->encode_matrix[r*k + j];
+		}
+	}
+	// get invert of matrix
+	gf_invert_matrix(error_matrix, invert_matrix, k);
+
+	// setup decode matrix
+	int err_count = 0;
+	int err_row_inds[n-k];
+	for(i = 0; i < k; i++) {
+		if(status[i] == 0) { // data at row i is lost
+			err_row_inds[err_count] = i;
+			for(j = 0; j < k; j++) {
+				decode_matrix[err_count*k + j] = invert_matrix[i*k + j];
+			}
+			err_count++;
+		}
+	}
+	// err_count == number of lost data rows
+
+	//Generates the expanded tables needed for fast encoding
+	ec_init_tables(k, err_count, decode_matrix, stripe->table);
+
+	//Actually generated the error correction codes
+	uint8_t** file_data = (uint8_t**)malloc(sizeof(uint8_t*)*n);
+	for(i=0; i<n; i++) {
+		file_data[i] = (uint8_t*)malloc(sizeof(uint8_t)*block_size);
+	}
+	int num_of_strip, non_full_block_ind, non_full_block_size;
+	double nos = (double) (filesize / (double)(block_size*k));
+	if(nos - (double)((int) nos) > 1e-3) {
+		num_of_strip = (int)nos + 1;
+		non_full_block_ind = (filesize - (unsigned long long)nos*block_size*k) / block_size;
+		non_full_block_size = filesize - (unsigned long long)nos*block_size*k - non_full_block_ind*block_size;
+	}
+	else {
+		num_of_strip = (int)nos;
+		non_full_block_ind = k;
+	}
+	unsigned long long written_bytes = 0;
+	int restore_order[k];
+	// decoding loop start
+	while(num_of_strip > 0) {
+		for(i=0; i<k; i++) {
+			fread(&file_data[i], 1, block_size, fp[i]);
+		}
+
+		ec_encode_data(block_size, k, err_count, stripe->table, file_data, &file_data[k]);
+		for(i = 0; i < k; i++) {
+			if(status[i] == 1) { // data row i is alive
+				restore_order[i] = i;
+			}
+			else { // data row i is dead, in restore
+				for(j = 0; j < n-k; j++) {
+					if(err_row_inds[j] == i) { 
+						restore_order[i] = k + j;
+						break;
+					}
+				}
+			}
+		}
+		if(num_of_strip > 1) {
+			for(i = 0; i < k; i++) {
+				fwrite(restore_fp, 1, block_size, &file_data[restore_order[i]]);
+			}
+			written_bytes += block_size*k;
+		}
+		else { // last strip
+			for(i = 0; i < non_full_block_ind; i++) {
+				fwrite(restore_fp, 1, block_size, &file_data[restore_order[i]]);
+			}
+			written_bytes += block_size*non_full_block_ind;
+			fwrite(restore_fp, 1, non_full_block_size, &file_data[restore_order[i]]);
+			written_bytes += non_full_block_size;
+			if(written_bytes == filesize) {
+				char status_str[100];
+				showRestoredBytes("Successfully restored file of size ", status_str, filesize);
+				printf("%s\n", status_str);
+			}
+			else {
+				printf("Decode error: restore size mismatch!\n");
+				exit(-1);
+			}
+		}
+	}
+	for(i = 0; i < k; i++) {
+		fclose(fp[i]);
+		int filename_len = strlen(filename);
+		if(filename_len <1) {
+			exit(-1);
+		}
+		char id_str[10];
+		int id_len = sprinf(&id_str, "%d", effective_ids[i]);
+		char filepath[filename_len+id_len+2];
+		strcpy(filepath, filename);
+		strcpy(filepath+filename_len, "_");
+		strcpy(filepath+filename_len+1, id_str);
+		remove(filepath);
+	}
+	fclose(restore_fp);
+}
+
 void list(int sd){
    struct message_s LIST_REQUEST; //to server
    struct message_s LIST_REPLY; //from server
@@ -180,7 +331,7 @@ void put(int notfound, int num, int sd, char *filename, Stripe* stripe, int last
 
 }
  
-void get(int sd, char* file_name) {
+int get(int sd, char* file_name, int *ser_id_ptr) {  // return filesize
 	struct message_s GET_REQUEST; //to server
 	int file_name_len = strlen(file_name);
 
@@ -189,7 +340,7 @@ void get(int sd, char* file_name) {
 	GET_REQUEST.length = ntohl(10 + file_name_len + 1);
 	char *buff = malloc(sizeof(char)*(10 + file_name_len + 1));
 	int len=0;
-
+	unsigned long long filesize;
 	memcpy(buff, &GET_REQUEST, 10);
 	memcpy(&buff[10], (void *)file_name, file_name_len);
 	buff[10 + file_name_len] = '\0';
@@ -199,7 +350,8 @@ void get(int sd, char* file_name) {
 	free(buff);
 
 	struct message_s GET_REPLY; //from server
-	buff = malloc(sizeof(char) * 10);
+	int server_id;
+	buff = malloc(sizeof(char) * 10 + sizeof(int));
 	if( (len=recvn(sd, (void *)buff, 10) ) < 0 ) {
 		printf("Send Error: %s (Errno:%d)\n",strerror(errno),errno); exit(0);
 	}
@@ -217,15 +369,48 @@ void get(int sd, char* file_name) {
 		perror("Wrong protocol code in GET_REPLY\n"); exit(1);
 	}
 	if(GET_REPLY.type == 0xB2) {
-		struct message_s FILE_DATA;
 		buff = malloc(sizeof(char) * block_size);
+		if( (len=recvn(sd, (void *)buff, GET_REPLY.length-10) ) < 0 ) {
+			printf("Send Error: %s (Errno:%d)\n",strerror(errno),errno); exit(0);
+		}
+		char num_str[50];
+		int i = 0;
+		for(i = 0; i < 50; i++) {
+			if(buff[i] != ' ') {
+				num_str[i] = buff[i];
+			}
+			else {
+				num_str[i] = '\0';
+				break;
+			}
+		}
+		server_id = atoi(num_str);
+		int j = 0;
+		i++;
+		while(i < GET_REPLY.length-10) {
+			num_str[j] = buff[i];
+			i++;
+			j++;
+		}
+		num_str[j] = '\0';
+		filesize = strtoull(num_str, NULL, 10); 
+		struct message_s FILE_DATA;
 		unsigned int file_data_len = 0;
-		char *file_path = malloc(sizeof(char) * (DPATH_LEN + file_name_len));
+		char ser_id_str[file_name_len+10];
+		int id_len = sprintf(ser_id_str, "%d", server_id);
+		char *file_path = malloc(sizeof(char) * (file_name_len+id_len+2));
 		// memcpy(file_path, DPATH, DPATH_LEN);
+		printf("server_id: %d, length: %d\n", server_id, id_len);
+		*ser_id_ptr = server_id;
 		strcpy(file_path, file_name);
-		FILE *fp = fopen(file_name, "w");
+		strcpy(file_path+file_name_len, "_");
+		strcpy(file_path+file_name_len+1, &ser_id_str);
+		FILE *fp = fopen(file_path, "w");
 		unsigned long long dl = 0;
-		char *showMessage = malloc(sizeof(char) *50);
+		char *showMessage = malloc(sizeof(char) *100);
+
+		// ServerStripe *serStripe = malloc(sizeof(ServerStripe));
+		// serStripe->id = server_id;
 		while(1) {
 			if( (len=recvn(sd, (void *)buff, 10) ) < 0 ) {
 				printf("Receive file Error: %s (Errno:%d)\n",strerror(errno),errno); exit(0);
@@ -246,7 +431,7 @@ void get(int sd, char* file_name) {
 				printf("Receive file Error: %s (Errno:%d)\n",strerror(errno),errno); exit(0);
 			}
 			dl += fwrite(buff, 1, len, fp);
-			showLoaderBytes("Downloaded ", showMessage, dl);
+			showLoaderBytes("Downloaded ", showMessage, dl, server_id);
 			printf("\r%s", showMessage);
 		}
 		printf("\n");
@@ -258,6 +443,7 @@ void get(int sd, char* file_name) {
 		perror("File not found\n");
 		exit(1);
 	}
+	return filesize;
 }
  
  
@@ -403,10 +589,39 @@ void main_task(in_addr_t* ip, unsigned short* port, char* op, char* filename, in
 		}	
 		fclose(fp);
 	}
-				// else if(strcmp(op,"get")==0){
-				// 	printf("to get\n");
-				// 	get(fd[i], filename);
-				// }
+	else if(strcmp(op,"get")==0){
+		printf("to get\n");
+		//iomultiplex
+		int count = 0;
+		int *eff_server_ids = malloc(sizeof(int) * k);
+		unsigned long long filesize = 0;
+		while(count<k){
+			FD_ZERO(&fds);
+			int max = fd[0];
+			for (int j=0; j<k ; j++){
+				FD_SET(fd[j], &fds);
+				if (fd[j]>max) max = fd[j];
+			}
+			printf("fd seted\n");
+			select(max + 1, NULL, &fds, NULL, &tv);
+			printf("selected\n");
+			for (int j=0; j<k ; j++){
+				if(FD_ISSET(fd[j],&fds)){
+					//deliver each block to each server
+					printf("into put: i:%d, fd[i]=%d\n",j,fd[j]);
+					if(filesize == 0) {
+						filesize = get(fd[j], filename, &eff_server_ids[count]);
+					}
+					else {
+						get(fd[j], filename, &eff_server_ids[count]);
+					}
+					count++;
+				}
+			}
+		}
+		decode_file(eff_server_ids, filename, filesize);
+		free(eff_server_ids);
+	}
 
 	for (i=0; i<server_num ; i++){
 		close(fd[i]);  // Time to shut up

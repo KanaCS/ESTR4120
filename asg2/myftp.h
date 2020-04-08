@@ -8,7 +8,8 @@ int sendn(int sd, void *buf, int buf_len);
 
 int recvn(int sd, void *buf, int buf_len);
 
-void showLoaderBytes(char *pre, char *str, unsigned long long b);
+void showLoaderBytes(char *pre, char *str, unsigned long long b, int server_id);
+void showRestoredBytes(char *pre, char *str, unsigned long long b);
 
 void print_message(struct message_s m) {
 	printf("Message: %s, type: %#02X, length: %u\n", m.protocol, m.type, m.length);

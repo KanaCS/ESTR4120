@@ -98,7 +98,37 @@ int recvn(int sd, void *buf, int buf_len){
 	return buf_len;
 }
 
-void showLoaderBytes(char *pre, char *str, unsigned long long b) {
+void showLoaderBytes(char *pre, char *str, unsigned long long b, int server_id) {
+	double t = (double)b /1024,  tprev = (double)b;
+	int i = 0;
+	while(tprev >= 1024) {
+		tprev = t;
+		t = t / 1024;
+		i++;
+	}
+	// printf("\n%d\n", strlen(pre));
+	memcpy(str, pre, strlen(pre));
+	if(i == 1) {
+		sprintf(&str[strlen(pre)], "%.2lf KB from server %d", tprev, server_id);
+		return;
+	}
+	if(i == 2) {
+		sprintf(&str[strlen(pre)], "%.2lf MB from server %d", tprev, server_id);
+		return;
+	}
+	if(i == 3) {
+		sprintf(&str[strlen(pre)], "%.2lf GB from server %d", tprev, server_id);
+		return;
+	}
+	if(i == 4) {
+		sprintf(&str[strlen(pre)], "%.2lf TB from server %d", tprev, server_id);
+		return;
+	}
+	sprintf(&str[strlen(pre)], "%llu Bytes from server %d", b, server_id);
+	return;
+}
+
+void showRestoredBytes(char *pre, char *str, unsigned long long b) {
 	double t = (double)b /1024,  tprev = (double)b;
 	int i = 0;
 	while(tprev >= 1024) {
