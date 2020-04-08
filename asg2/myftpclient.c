@@ -174,6 +174,7 @@ void decode_file(int *effective_ids, char *filename, unsigned long long filesize
 				exit(-1);
 			}
 		}
+		num_of_strip-=1;
 	}
 	for(i = 0; i < k; i++) {
 		fclose(fp[i]);
@@ -382,8 +383,8 @@ int get(int sd, char* file_name, int *ser_id_ptr) {  // return filesize
 			}
 		}
 		server_id = atoi(num_str);
-		printf("GET_REPLY length: %u\n", GET_REPLY.length);
-		printf("GET_REPLY ser_id: %s\n", num_str);
+		// printf("GET_REPLY length: %u\n", GET_REPLY.length);
+		// printf("GET_REPLY ser_id: %s\n", num_str);
 		int j = 0;
 		i++;
 		while(i < GET_REPLY.length-10) {
@@ -393,14 +394,14 @@ int get(int sd, char* file_name, int *ser_id_ptr) {  // return filesize
 		}
 		num_str[j] = '\0';
 		filesize = strtoull(num_str, NULL, 10); 
-		printf("GET_REPLY filesize: %s\n", num_str);
+		// printf("GET_REPLY filesize: %s\n", num_str);
 		struct message_s FILE_DATA;
 		unsigned int file_data_len = 0;
 		char ser_id_str[file_name_len+10];
 		int id_len = sprintf(ser_id_str, "%d", server_id);
 		char *file_path = malloc(sizeof(char) * (file_name_len+id_len+2));
 		// memcpy(file_path, DPATH, DPATH_LEN);
-		printf("server_id: %d, length: %d\n", server_id, id_len);
+		// printf("server_id: %d, length: %d\n", server_id, id_len);
 		*ser_id_ptr = server_id;
 		strcpy(file_path, file_name);
 		strcpy(file_path+file_name_len, "_");
