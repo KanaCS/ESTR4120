@@ -61,6 +61,9 @@ void decode_file(int *effective_ids, char *filename, unsigned long long filesize
 	gf_gen_rs_matrix(stripe->encode_matrix, n, k);
 	
 	qsort(effective_ids, k, sizeof(int), compare);
+	printf("effective_ids(correspond to fp[i]):");
+	for(i = 0; i < k; i++) {printf(" %d", effective_ids[i]);}
+	printf("\n");
 	for(i=0;i<n;i++){
 		stripe->blocks[i] = (uint8_t*)malloc(block_size * sizeof(uint8_t));
 	}
@@ -140,8 +143,9 @@ void decode_file(int *effective_ids, char *filename, unsigned long long filesize
 		for(i=0; i<k; i++) {
 			fread(&file_data[i], 1, block_size, fp[i]);
 		}
-
-		ec_encode_data(block_size, k, err_count, stripe->table, file_data, &file_data[k]);
+		if(err_count>0) {
+			ec_encode_data(block_size, k, err_count, stripe->table, file_data, &file_data[k]);
+		}
 		for(i = 0; i < k; i++) {
 			if(status[i] == 1) { // data row i is alive
 				restore_order[i] = i;
@@ -166,11 +170,11 @@ void decode_file(int *effective_ids, char *filename, unsigned long long filesize
 		// 	printf(" %d", restore_order[i]);
 		// }
 		// printf("\n");
-		printf("remaining strip: %d", num_of_strip);
+		// printf("remaining strip: %d\n", num_of_strip);
 		if(num_of_strip > 1) {
 			for(i = 0; i < k; i++) {
 				fwrite(&file_data[restore_order[i]], 1, block_size, restore_fp);
-				printf("written file_data: %d", restore_order[i]);
+				// printf("written file_data: %d\n", restore_order[i]);
 			}
 			written_bytes += block_size*k;
 		}
