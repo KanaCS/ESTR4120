@@ -149,20 +149,22 @@ void decode_file(int *effective_ids, char *filename, unsigned long long filesize
 				}
 			}
 		}
-		printf("error_count: %d\n", err_count);
-		printf("err_row_inds:");
-		for(i = 0; i < n-k; i++) {
-			printf(" %d", err_row_inds[i]);
-		}
-		printf("\n");
-		printf("restore_order:");
-		for(i = 0; i < k; i++) {
-			printf(" %d", restore_order[i]);
-		}
-		printf("\n");
+		// printf("error_count: %d\n", err_count);
+		// printf("err_row_inds:");
+		// for(i = 0; i < n-k; i++) {
+		// 	printf(" %d", err_row_inds[i]);
+		// }
+		// printf("\n");
+		// printf("restore_order:");
+		// for(i = 0; i < k; i++) {
+		// 	printf(" %d", restore_order[i]);
+		// }
+		// printf("\n");
+		printf("remaining strip: %d", num_of_strip);
 		if(num_of_strip > 1) {
 			for(i = 0; i < k; i++) {
 				fwrite(&file_data[restore_order[i]], 1, block_size, restore_fp);
+				printf("written file_data: %d", restore_order[i]);
 			}
 			written_bytes += block_size*k;
 		}
