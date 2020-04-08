@@ -39,6 +39,12 @@ uint8_t* encode_data(int n, int k, Stripe *stripe, size_t block_size){
 
 	return stripe->encode_matrix;
 }
+int compare(const void * a, const void * b)
+{
+  if ( *(int*)a <  *(int*)b ) return -1;
+  if ( *(int*)a == *(int*)b ) return 0;
+  if ( *(int*)a >  *(int*)b ) return 1;
+}
 
 void decode_file(int *effective_ids, char *filename, unsigned long long filesize) {
 	int i, j;
@@ -54,7 +60,7 @@ void decode_file(int *effective_ids, char *filename, unsigned long long filesize
 	//Generate encode matrix
 	gf_gen_rs_matrix(stripe->encode_matrix, n, k);
 	
-
+	qsort(effective_ids, k, sizeof(int), compare);
 	for(i=0;i<n;i++){
 		stripe->blocks[i] = (uint8_t*)malloc(block_size * sizeof(uint8_t));
 	}
