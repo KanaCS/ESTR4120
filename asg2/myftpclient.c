@@ -360,9 +360,6 @@ int get(int sd, char* file_name, int *ser_id_ptr) {  // return filesize
 	// if(GET_REPLY.length == 0){
 	// 	perror("requested upload file doesn't exist: No such file or directory\n"); exit(1);
 	// }
-	if(len != GET_REPLY.length) {
-		printf("Recv Error: expect %d, recv %d\n", GET_REPLY.length, len); exit(0);
-	}
 	
 	free(buff);
 	if(memcmp(GET_REPLY.protocol, PROTOCOL_CODE, 5) != 0) {
