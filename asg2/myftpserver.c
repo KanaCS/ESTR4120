@@ -98,6 +98,7 @@ void get(int sd, char *file_name) {
 	int i = 0;
 	while((c = fgetc(meta_fp)) != EOF) {
 		num_str[i] = c;
+		i++;
 	}
 	num_str[i] = '\0';
 	strcpy(buff + 10 + num_str_len, num_str);
