@@ -84,8 +84,8 @@ void get(int sd, char *file_name) {
    	// GET_REPLY
    	int len = 0, num_str_len = 0;
 	char meta_file_path[100];
-	strcpy(meta_file_path, "./metadata/");
-	strcpy(meta_file_path + 11, file_name);
+	strcpy(meta_file_path, "data/metadata/");
+	strcpy(meta_file_path + 14, file_name);
 	FILE *meta_fp = fopen(meta_file_path, "r"); 
 	char *buff = malloc(sizeof(char) * 50);
 	char num_str[50],c;
