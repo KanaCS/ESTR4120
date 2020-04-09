@@ -139,7 +139,7 @@ void decode_file(int *effective_ids, char *filename, unsigned long long filesize
 	unsigned long long written_bytes = 0;
 	int restore_order[k];
 	// decoding loop start
-	printf("err_count=%d\n", err_count);
+	printf("err_count=%d, k=%d\n", err_count, k);
 	while(num_of_strip > 0) {
 		for(i=0; i<k; i++) {
 			fread(&file_data[i], 1, block_size, fp[i]);
