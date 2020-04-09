@@ -176,14 +176,14 @@ void decode_file(int *effective_ids, char *filename, unsigned long long filesize
 		// printf("remaining strip: %d\n", num_of_strip);
 		if(num_of_strip > 1) {
 			for(i = 0; i < k; i++) {
-				fwrite(&file_data[restore_order[i]], 1, block_size, restore_fp);
+				fwrite(file_data[restore_order[i]], 1, block_size, restore_fp);
 				// printf("written file_data: %d\n", restore_order[i]);
 			}
 			written_bytes += block_size*k;
 		}
 		else { // last strip
 			for(i = 0; i < non_full_block_ind; i++) {
-				fwrite(&file_data[restore_order[i]], 1, block_size, restore_fp);
+				fwrite(file_data[restore_order[i]], 1, block_size, restore_fp);
 			}
 			written_bytes += block_size*non_full_block_ind;
 			fwrite(&file_data[restore_order[i]], 1, non_full_block_size, restore_fp);
