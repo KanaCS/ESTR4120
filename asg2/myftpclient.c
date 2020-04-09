@@ -479,6 +479,7 @@ void main_task(in_addr_t* ip, unsigned short* port, char* op, char* filename, in
 	tv.tv_sec = 0;
 	tv.tv_usec = 0;
 
+	int ava_fds[k], ava_count=0;
 	//set up connection to other servers
 	int i = 0, found = 1, success=0;
 	for(i=0; i<server_num; i++){
@@ -503,7 +504,13 @@ void main_task(in_addr_t* ip, unsigned short* port, char* op, char* filename, in
 			if(found!=0) count--;
 			found=0;
 		}
-		else found = 1;
+		else {
+			found = 1;
+			if(ava_count < k) {
+				ava_fds[ava_count] = fd[i];
+				ava_count++;
+			}
+		}
 		if(found = 1) success++;
 		if(strcmp(op,"list")==0){
 			if(found == 1){
@@ -618,23 +625,23 @@ void main_task(in_addr_t* ip, unsigned short* port, char* op, char* filename, in
 		unsigned long long filesize = 0;
 		while(count<k){
 			FD_ZERO(&fds);
-			int max = fd[0];
+			int max = ava_fds[0];
 			for (int j=0; j<k ; j++){
-				FD_SET(fd[j], &fds);
-				if (fd[j]>max) max = fd[j];
+				FD_SET(ava_fds[j], &fds);
+				if (ava_fds[j]>max) max = ava_fds[j];
 			}
 			printf("fd seted\n");
 			select(max + 1, NULL, &fds, NULL, &tv);
 			printf("selected\n");
 			for (int j=0; j<k ; j++){
-				if(FD_ISSET(fd[j],&fds)){
+				if(FD_ISSET(ava_fds[j],&fds)){
 					//deliver each block to each server
-					printf("into put: i:%d, fd[i]=%d\n",j,fd[j]);
+					printf("into get: i:%d, fd[i]=%d\n",j,ava_fds[j]);
 					if(filesize == 0) {
-						filesize = get(fd[j], filename, &eff_server_ids[count]);
+						filesize = get(ava_fds[j], filename, &eff_server_ids[count]);
 					}
 					else {
-						get(fd[j], filename, &eff_server_ids[count]);
+						get(ava_fds[j], filename, &eff_server_ids[count]);
 					}
 					count++;
 				}
