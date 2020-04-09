@@ -168,11 +168,11 @@ void decode_file(int *effective_ids, char *filename, unsigned long long filesize
 		// 	printf(" %d", err_row_inds[i]);
 		// }
 		// printf("\n");
-		printf("restore_order:");
-		for(i = 0; i < k; i++) {
-			printf(" %d", restore_order[i]);
-		}
-		printf("\n");
+		// printf("restore_order:");
+		// for(i = 0; i < k; i++) {
+		// 	printf(" %d", restore_order[i]);
+		// }
+		// printf("\n");
 		// printf("remaining strip: %d\n", num_of_strip);
 		if(num_of_strip > 1) {
 			for(i = 0; i < k; i++) {
