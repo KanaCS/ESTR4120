@@ -103,6 +103,11 @@ void decode_file(int *effective_ids, char *filename, unsigned long long filesize
 	// get invert of matrix
 	gf_invert_matrix(error_matrix, invert_matrix, k);
 
+	printf("\n");
+	printf("status:");
+	for(i = 0; i < k; i++) {
+		printf(" %d", status[i]);
+	}
 	// setup decode matrix
 	int err_count = 0;
 	int err_row_inds[n-k];
