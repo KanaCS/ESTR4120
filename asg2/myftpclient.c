@@ -51,7 +51,6 @@ void decode_file(int *effective_ids, char *filename, unsigned long long filesize
 	uint8_t *error_matrix = malloc(sizeof(uint8_t) * (k*k));
 	uint8_t *invert_matrix = malloc(sizeof(uint8_t) * (k*k));
 	uint8_t *decode_matrix = malloc(sizeof(uint8_t) * (n*k));
-	unsigned char *dl_file_mat = malloc(sizeof(unsigned char) * (k*k));
 
 	Stripe *stripe=malloc(sizeof(Stripe));
 	stripe->encode_matrix = malloc(sizeof(uint8_t)*(n*k));
@@ -125,6 +124,11 @@ void decode_file(int *effective_ids, char *filename, unsigned long long filesize
 	for(i=0; i<n; i++) {
 		file_data[i] = (unsigned char*)malloc(sizeof(unsigned char)*block_size);
 	}
+	unsigned char **dl_file_mat = (unsigned char**)malloc(sizeof(unsigned char*)*k);
+	for(i=0; i<n; i++) {
+		dl_file_mat[i] = (unsigned char*)malloc(sizeof(unsigned char)*block_size);
+	}
+
 	int num_of_strip, non_full_block_ind, non_full_block_size;
 	double nos = (double) (filesize / (double)(block_size*k));
 	if(nos - (double)((int) nos) > 1e-3) {
@@ -164,7 +168,7 @@ void decode_file(int *effective_ids, char *filename, unsigned long long filesize
 			fread(file_data[i], 1, block_size, fp[i]);
 		}
 		for(i = 0; i<k; i++) {
-			memcpy(&dl_file_mat[i*block_size], file_data[i], block_size);
+			memcpy(dl_file_mat[i], file_data[i], block_size);
 		}
 		if(err_count>0) {
 			// printf("encode start\n");
