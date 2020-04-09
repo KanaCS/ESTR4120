@@ -489,6 +489,7 @@ void main_task(in_addr_t* ip, unsigned short* port, char* op, char* filename, in
 	int ava_fds[k], ava_count=0;
 	//set up connection to other servers
 	int i = 0, found = 1, success=0;
+	printf("server_num = %d\n", server_num);
 	for(i=0; i<server_num; i++){
 		found = 1;
 		if((fd[i] = socket(AF_INET, SOCK_STREAM, 0)) == -1){   // Create a TCP socket
@@ -516,6 +517,7 @@ void main_task(in_addr_t* ip, unsigned short* port, char* op, char* filename, in
 			if(ava_count < k) {
 				ava_fds[ava_count] = fd[i];
 				ava_count++;
+				printf("ava_fds add fd=%d\n", fd[i]);
 			}
 		}
 		if(found = 1) success++;
@@ -536,7 +538,7 @@ void main_task(in_addr_t* ip, unsigned short* port, char* op, char* filename, in
 				perror("less than k servers available for \"get\"");
 				exit(0);
 			}
-			if(success==k) break;
+			if(ava_count==k) break;
 		}
 		else{
 			perror("neither list, get or put can be performed");
@@ -643,7 +645,7 @@ void main_task(in_addr_t* ip, unsigned short* port, char* op, char* filename, in
 			for (int j=0; j<k ; j++){
 				if(FD_ISSET(ava_fds[j],&fds)){
 					//deliver each block to each server
-					printf("into get: i:%d, fd[i]=%d\n",j,ava_fds[j]);
+					printf("into get: j:%d, ava_fd[j]=%d\n",j,ava_fds[j]);
 					if(filesize == 0) {
 						filesize = get(ava_fds[j], filename, &eff_server_ids[count]);
 						if(filesize==-1) dc=0;
