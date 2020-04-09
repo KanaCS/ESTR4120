@@ -83,7 +83,7 @@ void get(int sd, char *file_name) {
    else { // file found, send GET_REPLY and send file
    	// GET_REPLY
    	int len = 0, num_str_len = 0;
-	char meta_file_path[100];
+	char meta_file_path[1100];
 	strcpy(meta_file_path, "data/metadata/");
 	strcpy(meta_file_path + 14, file_name);
 	FILE *meta_fp = fopen(meta_file_path, "r"); 
@@ -152,7 +152,7 @@ void put(int sd, char *file_name){
 	unsigned int file_data_len;
 	struct message_s PUT_REPLY;
 	struct message_s FILE_DATA;
-	char *full_path = malloc(sizeof(char) * 50);
+	char *full_path = malloc(sizeof(char) * 1100);
 	memcpy(full_path, DPATH, DPATH_LEN);
 	strcpy(&full_path[DPATH_LEN], file_name);
 
@@ -194,7 +194,7 @@ void put(int sd, char *file_name){
 				printf("Send Error: %s (Errno:%d)\n",strerror(errno),errno); exit(0);
 			}
 			//store in metafile
-			char path[100]; memset(path, '\0', sizeof(path));
+			char path[1100]; memset(path, '\0', sizeof(path));
 			mkdir("data/metadata", 0700);
 			strcpy(path, "data/metadata/");
 			strcat(path, file_name);
@@ -213,7 +213,7 @@ void put(int sd, char *file_name){
 	}
 	printf("\n");
 	free(message_str);
-	free(buff);
+	free(buff); free(full_path);
 	fclose(fp);
 }
 
