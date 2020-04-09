@@ -145,7 +145,9 @@ void decode_file(int *effective_ids, char *filename, unsigned long long filesize
 			fread(&file_data[i], 1, block_size, fp[i]);
 		}
 		if(err_count>0) {
+			printf("encode start\n");
 			ec_encode_data(block_size, k, err_count, stripe->table, file_data, &file_data[k]);
+			printf("encode end\n");
 		}
 		for(i = 0; i < k; i++) {
 			if(status[i] == 1) { // data row i is alive
