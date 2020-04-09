@@ -172,10 +172,10 @@ void decode_file(int *effective_ids, char *filename, unsigned long long filesize
 	}
 	printf("\n");
 	printf("error_count: %d\n", err_count);
-	printf("err_row_inds:");
-	for(i = 0; i < n-k; i++) {
-		printf(" %d", err_row_inds[i]);
-	}
+	printf("err_row_inds: %d\n", err_row_inds[i]);
+	// for(i = 0; i < n-k; i++) {
+	// 	printf(" %d", err_row_inds[i]);
+	// }
 	// decoding loop start
 	while(num_of_strip > 0) {
 		for(i=0; i<k; i++) {
