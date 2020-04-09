@@ -627,6 +627,8 @@ void main_task(in_addr_t* ip, unsigned short* port, char* op, char* filename, in
 		fclose(fp);
 	}
 	else if(strcmp(op,"get")==0){
+		int *check_send = malloc(k*sizeof(int));
+		memset(check_send, 0, k*sizeof(int));
 		printf("to get\n");
 		//iomultiplex
 		int count = 0, dc=1;
@@ -643,7 +645,7 @@ void main_task(in_addr_t* ip, unsigned short* port, char* op, char* filename, in
 			select(max + 1, NULL, &fds, NULL, &tv);
 			printf("selected\n");
 			for (int j=0; j<k ; j++){
-				if(FD_ISSET(ava_fds[j],&fds)){
+				if(FD_ISSET(ava_fds[j],&fds) && check_send[j]==0){
 					//deliver each block to each server
 					printf("into get: j:%d, ava_fd[j]=%d\n",j,ava_fds[j]);
 					if(filesize == 0) {
@@ -654,6 +656,7 @@ void main_task(in_addr_t* ip, unsigned short* port, char* op, char* filename, in
 						get(ava_fds[j], filename, &eff_server_ids[count]);
 					}
 					count++;
+					check_send[j]=1;
 				}
 			}
 		}
