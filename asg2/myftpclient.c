@@ -509,6 +509,7 @@ void main_task(in_addr_t* ip, unsigned short* port, char* op, char* filename, in
 			if(ava_count < k) {
 				ava_fds[ava_count] = fd[i];
 				ava_count++;
+				print("ava_fds add fd=%d\n", fd[i]);
 			}
 		}
 		if(found = 1) success++;
@@ -636,7 +637,7 @@ void main_task(in_addr_t* ip, unsigned short* port, char* op, char* filename, in
 			for (int j=0; j<k ; j++){
 				if(FD_ISSET(ava_fds[j],&fds)){
 					//deliver each block to each server
-					printf("into get: i:%d, fd[i]=%d\n",j,ava_fds[j]);
+					printf("into get: j:%d, ava_fd[j]=%d\n",j,ava_fds[j]);
 					if(filesize == 0) {
 						filesize = get(ava_fds[j], filename, &eff_server_ids[count]);
 					}
