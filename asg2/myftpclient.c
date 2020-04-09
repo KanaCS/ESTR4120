@@ -212,7 +212,7 @@ void decode_file(int *effective_ids, char *filename, unsigned long long filesize
 		strcpy(filepath, filename);
 		strcpy(filepath+filename_len, "_");
 		strcpy(filepath+filename_len+1, id_str);
-		// remove(filepath);
+		remove(filepath);
 	}
 	fclose(restore_fp);
 }
