@@ -531,7 +531,7 @@ void main_task(in_addr_t* ip, unsigned short* port, char* op, char* filename, in
 				perror("less than k servers available for \"get\"");
 				exit(0);
 			}
-			if(success==k) break;
+			if(ava_count==k) break;
 		}
 		else{
 			perror("neither list, get or put can be performed");
