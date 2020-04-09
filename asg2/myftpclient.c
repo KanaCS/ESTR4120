@@ -480,7 +480,7 @@ void main_task(in_addr_t* ip, unsigned short* port, char* op, char* filename, in
 	tv.tv_usec = 0;
 
 	//set up connection to other servers
-	int i = 0, found = 1;
+	int i = 0, found = 1, success=0;
 	for(i=0; i<server_num; i++){
 		found = 1;
 		if((fd[i] = socket(AF_INET, SOCK_STREAM, 0)) == -1){   // Create a TCP socket
@@ -504,6 +504,7 @@ void main_task(in_addr_t* ip, unsigned short* port, char* op, char* filename, in
 			found=0;
 		}
 		else found = 1;
+		if(found = 1) success++;
 		if(strcmp(op,"list")==0){
 			if(found == 1){
 				list(fd[i]); 
@@ -521,6 +522,7 @@ void main_task(in_addr_t* ip, unsigned short* port, char* op, char* filename, in
 				perror("less than k servers available for \"get\"");
 				exit(0);
 			}
+			if(success==k) break;
 		}
 		else{
 			perror("neither list, get or put can be performed");
