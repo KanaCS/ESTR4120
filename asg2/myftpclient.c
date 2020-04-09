@@ -121,9 +121,9 @@ void decode_file(int *effective_ids, char *filename, unsigned long long filesize
 	//Generates the expanded tables needed for fast encoding
 	ec_init_tables(k, err_count, decode_matrix, stripe->table);
 
-	uint8_t** file_data = (uint8_t**)malloc(sizeof(uint8_t*)*n);
+	unsigned char **file_data = (unsigned char**)malloc(sizeof(unsigned char*)*n);
 	for(i=0; i<n; i++) {
-		file_data[i] = (uint8_t*)malloc(sizeof(uint8_t)*block_size);
+		file_data[i] = (unsigned char*)malloc(sizeof(unsigned char)*block_size);
 	}
 	int num_of_strip, non_full_block_ind, non_full_block_size;
 	double nos = (double) (filesize / (double)(block_size*k));
@@ -146,7 +146,7 @@ void decode_file(int *effective_ids, char *filename, unsigned long long filesize
 		}
 		if(err_count>0) {
 			printf("encode start\n");
-			ec_encode_data(block_size, k, err_count, stripe->table, file_data[0], file_data[k]);
+			ec_encode_data(block_size, k, err_count, stripe->table, file_data, &file_data[k]);
 			printf("encode end\n");
 		}
 		for(i = 0; i < k; i++) {
