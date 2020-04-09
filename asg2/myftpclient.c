@@ -145,7 +145,9 @@ void decode_file(int *effective_ids, char *filename, unsigned long long filesize
 	printf("err_count=%d, k=%d\n", err_count, k);
 	for(i = 0; i < k; i++) {
 		if(status[i] == 1) { // data row i is alive
-			restore_order[i] = i;
+			for(j = 0; j < k; j++) {
+				if(effective_ids[j] == i) { restore_order[i] = j; break;}
+			}
 		}
 		else { // data row i is dead, in restore
 			for(j = 0; j < n-k; j++) {
@@ -162,6 +164,11 @@ void decode_file(int *effective_ids, char *filename, unsigned long long filesize
 		printf(" %d", restore_order[i]);
 	}
 	printf("\n");
+	printf("error_count: %d\n", err_count);
+	printf("err_row_inds:");
+	for(i = 0; i < n-k; i++) {
+		printf(" %d", err_row_inds[i]);
+	}
 	// decoding loop start
 	while(num_of_strip > 0) {
 		for(i=0; i<k; i++) {
@@ -178,12 +185,7 @@ void decode_file(int *effective_ids, char *filename, unsigned long long filesize
 		// for(i = 0; i < block_size; i++) {
 		// 	printf("%c", file_data[k][i]);
 		// }
-		// printf("\n");
-		// printf("error_count: %d\n", err_count);
-		// printf("err_row_inds:");
-		// for(i = 0; i < n-k; i++) {
-		// 	printf(" %d", err_row_inds[i]);
-		// }
+		
 		// printf("remaining strip: %d\n", num_of_strip);
 		if(num_of_strip > 1) {
 			for(i = 0; i < k; i++) {
