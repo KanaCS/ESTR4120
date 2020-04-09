@@ -509,7 +509,7 @@ void main_task(in_addr_t* ip, unsigned short* port, char* op, char* filename, in
 			if(ava_count < k) {
 				ava_fds[ava_count] = fd[i];
 				ava_count++;
-				print("ava_fds add fd=%d\n", fd[i]);
+				printf("ava_fds add fd=%d\n", fd[i]);
 			}
 		}
 		if(found = 1) success++;
