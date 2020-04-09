@@ -142,7 +142,7 @@ void decode_file(int *effective_ids, char *filename, unsigned long long filesize
 	printf("err_count=%d, k=%d\n", err_count, k);
 	while(num_of_strip > 0) {
 		for(i=0; i<k; i++) {
-			fread(&file_data[i], 1, block_size, fp[i]);
+			fread(file_data[i], 1, block_size, fp[i]);
 		}
 		if(err_count>0) {
 			printf("encode start\n");
