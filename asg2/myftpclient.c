@@ -482,6 +482,7 @@ void main_task(in_addr_t* ip, unsigned short* port, char* op, char* filename, in
 	int ava_fds[k], ava_count=0;
 	//set up connection to other servers
 	int i = 0, found = 1, success=0;
+	printf("server_num = %d\n", server_num);
 	for(i=0; i<server_num; i++){
 		found = 1;
 		if((fd[i] = socket(AF_INET, SOCK_STREAM, 0)) == -1){   // Create a TCP socket
