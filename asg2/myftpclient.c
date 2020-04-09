@@ -50,11 +50,11 @@ void decode_file(int *effective_ids, char *filename, unsigned long long filesize
 	int i, j;
 	uint8_t *error_matrix = malloc(sizeof(uint8_t) * (k*k));
 	uint8_t *invert_matrix = malloc(sizeof(uint8_t) * (k*k));
-	uint8_t *decode_matrix = malloc(sizeof(uint8_t) * (k*k));
+	uint8_t *decode_matrix = malloc(sizeof(uint8_t) * (n*k*10));
 
 	Stripe *stripe=malloc(sizeof(Stripe));
 	stripe->encode_matrix = malloc(sizeof(uint8_t)*(n*k));
-	stripe->table = malloc(sizeof(uint8_t)*32*k*(n-k));
+	stripe->table = malloc(sizeof(uint8_t)*32*k*(n-k)*10);
 	stripe->blocks = (uint8_t**)malloc(n * sizeof(uint8_t*));
 
 	//Generate encode matrix
@@ -139,12 +139,15 @@ void decode_file(int *effective_ids, char *filename, unsigned long long filesize
 	unsigned long long written_bytes = 0;
 	int restore_order[k];
 	// decoding loop start
+	printf("err_count=%d, k=%d\n", err_count, k);
 	while(num_of_strip > 0) {
 		for(i=0; i<k; i++) {
-			fread(&file_data[i], 1, block_size, fp[i]);
+			fread(file_data[i], 1, block_size, fp[i]);
 		}
 		if(err_count>0) {
-			ec_encode_data(block_size, k, err_count, stripe->table, file_data, &file_data[k]);
+			printf("encode start\n");
+			ec_encode_data(block_size, k, err_count, stripe->table, file_data[0], file_data[k]);
+			printf("encode end\n");
 		}
 		for(i = 0; i < k; i++) {
 			if(status[i] == 1) { // data row i is alive
