@@ -177,7 +177,7 @@ void decode_file(int *effective_ids, char *filename, unsigned long long filesize
 		printf(" %d", err_row_inds[i]);
 	}
 	printf("\n");
-	
+
 	// decoding loop start
 	while(num_of_strip > 0) {
 		for(i=0; i<k; i++) {
@@ -208,7 +208,7 @@ void decode_file(int *effective_ids, char *filename, unsigned long long filesize
 				fwrite(file_data[restore_order[i]], 1, block_size, restore_fp);
 			}
 			written_bytes += block_size*non_full_block_ind;
-			fwrite(&file_data[restore_order[i]], 1, non_full_block_size, restore_fp);
+			fwrite(file_data[restore_order[i]], 1, non_full_block_size, restore_fp);
 			written_bytes += non_full_block_size;
 			if(written_bytes == filesize) {
 				char status_str[100];
