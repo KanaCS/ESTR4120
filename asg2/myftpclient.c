@@ -50,11 +50,11 @@ void decode_file(int *effective_ids, char *filename, unsigned long long filesize
 	int i, j;
 	uint8_t *error_matrix = malloc(sizeof(uint8_t) * (k*k));
 	uint8_t *invert_matrix = malloc(sizeof(uint8_t) * (k*k));
-	uint8_t *decode_matrix = malloc(sizeof(uint8_t) * (n*k*10));
+	uint8_t *decode_matrix = malloc(sizeof(uint8_t) * (n*k));
 
 	Stripe *stripe=malloc(sizeof(Stripe));
 	stripe->encode_matrix = malloc(sizeof(uint8_t)*(n*k));
-	stripe->table = malloc(sizeof(uint8_t)*32*k*(n-k)*10);
+	stripe->table = malloc(sizeof(uint8_t)*32*k*(n-k));
 	stripe->blocks = (uint8_t**)malloc(n * sizeof(uint8_t*));
 
 	//Generate encode matrix
@@ -70,7 +70,6 @@ void decode_file(int *effective_ids, char *filename, unsigned long long filesize
 	FILE *fp[k];
 	FILE *restore_fp;
 	for(i = 0; i < k; i++) {
-		printf("decode_file filename have len %d\n", (int)strlen(filename));
 		int filename_len = strlen(filename);
 		if(filename_len <1) {
 			exit(-1);
@@ -138,8 +137,27 @@ void decode_file(int *effective_ids, char *filename, unsigned long long filesize
 	}
 	unsigned long long written_bytes = 0;
 	int restore_order[k];
-	// decoding loop start
 	printf("err_count=%d, k=%d\n", err_count, k);
+	for(i = 0; i < k; i++) {
+		if(status[i] == 1) { // data row i is alive
+			restore_order[i] = i;
+		}
+		else { // data row i is dead, in restore
+			for(j = 0; j < n-k; j++) {
+				if(err_row_inds[j] == i) { 
+					restore_order[i] = k + j;
+					break;
+				}
+			}
+		}
+	}
+	printf("\n");
+	printf("restore_order:");
+	for(i = 0; i < k; i++) {
+		printf(" %d", restore_order[i]);
+	}
+	printf("\n");
+	// decoding loop start
 	while(num_of_strip > 0) {
 		for(i=0; i<k; i++) {
 			fread(file_data[i], 1, block_size, fp[i]);
@@ -149,30 +167,15 @@ void decode_file(int *effective_ids, char *filename, unsigned long long filesize
 			ec_encode_data(block_size, k, err_count, stripe->table, file_data, &file_data[k]);
 			// printf("encode end\n");
 		}
-		for(i = 0; i < k; i++) {
-			if(status[i] == 1) { // data row i is alive
-				restore_order[i] = i;
-			}
-			else { // data row i is dead, in restore
-				for(j = 0; j < n-k; j++) {
-					if(err_row_inds[j] == i) { 
-						restore_order[i] = k + j;
-						break;
-					}
-				}
-			}
+		for(i = 0; i < block_size; i++) {
+			print("%c", file_data[k][i]);
 		}
+		print("\n");
 		// printf("error_count: %d\n", err_count);
 		// printf("err_row_inds:");
 		// for(i = 0; i < n-k; i++) {
 		// 	printf(" %d", err_row_inds[i]);
 		// }
-		printf("\n");
-		printf("restore_order:");
-		for(i = 0; i < k; i++) {
-			printf(" %d", restore_order[i]);
-		}
-		// printf("\n");
 		// printf("remaining strip: %d\n", num_of_strip);
 		if(num_of_strip > 1) {
 			for(i = 0; i < k; i++) {
