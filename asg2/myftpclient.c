@@ -168,9 +168,9 @@ void decode_file(int *effective_ids, char *filename, unsigned long long filesize
 			// printf("encode end\n");
 		}
 		for(i = 0; i < block_size; i++) {
-			print("%c", file_data[k][i]);
+			printf("%c", file_data[k][i]);
 		}
-		print("\n");
+		printf("\n");
 		// printf("error_count: %d\n", err_count);
 		// printf("err_row_inds:");
 		// for(i = 0; i < n-k; i++) {
