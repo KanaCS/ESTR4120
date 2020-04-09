@@ -524,7 +524,7 @@ void main_task(in_addr_t* ip, unsigned short* port, char* op, char* filename, in
 				printf("ava_fds add fd=%d\n", fd[i]);
 			}
 		}
-		if(found = 1) success++;
+		if(found == 1) success++;
 		if(strcmp(op,"list")==0){
 			if(found == 1){
 				list(fd[i]); 
