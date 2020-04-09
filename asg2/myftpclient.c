@@ -481,13 +481,14 @@ void main_task(in_addr_t* ip, unsigned short* port, char* op, char* filename, in
 	struct timeval tv;
 	tv.tv_sec = 0;
 	tv.tv_usec = 0;
-
-	FILE *fp = fopen(filename, "r");
-	if(fp==NULL){
-			perror("requested upload file doesn't exist");
-			exit(0);
-	} 
-	fclose(fp);
+	if(strcmp(op,"put")==0){
+		FILE *fp = fopen(filename, "r");
+		if(fp==NULL){
+				perror("requested upload file doesn't exist");
+				exit(0);
+		} 
+		fclose(fp);
+	}
 
 	int ava_fds[k], ava_count=0;
 	//set up connection to other servers
