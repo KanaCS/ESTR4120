@@ -146,7 +146,7 @@ void decode_file(int *effective_ids, char *filename, unsigned long long filesize
 		}
 		if(err_count>0) {
 			printf("encode start\n");
-			ec_encode_data(block_size, k, err_count, stripe->table, file_data, &file_data[k]);
+			ec_encode_data(block_size, k, err_count, stripe->table, file_data[0], file_data[k]);
 			printf("encode end\n");
 		}
 		for(i = 0; i < k; i++) {
