@@ -172,10 +172,10 @@ void decode_file(int *effective_ids, char *filename, unsigned long long filesize
 	}
 	printf("\n");
 	printf("error_count: %d\n", err_count);
-	printf("err_row_inds: %d\n", err_row_inds[0]);
-	// for(i = 0; i < n-k; i++) {
-	// 	printf(" %d", err_row_inds[i]);
-	// }
+	printf("err_row_inds: ");
+	for(i = 0; i < n-k; i++) {
+		printf(" %d", err_row_inds[i]);
+	}
 	// decoding loop start
 	while(num_of_strip > 0) {
 		for(i=0; i<k; i++) {
@@ -185,9 +185,9 @@ void decode_file(int *effective_ids, char *filename, unsigned long long filesize
 			memcpy(dl_file_mat[i], file_data[i], block_size);
 		}
 		if(err_count>0) {
-			printf("encode start\n");
+			// printf("encode start\n");
 			ec_encode_data(block_size, k, err_count, stripe->table, dl_file_mat, &file_data[k]);
-			printf("encode end\n");
+			// printf("encode end\n");
 		}
 		// for(i = 0; i < block_size; i++) {
 		// 	printf("%c", file_data[k][i]);
