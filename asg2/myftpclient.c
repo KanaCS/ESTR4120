@@ -167,10 +167,10 @@ void decode_file(int *effective_ids, char *filename, unsigned long long filesize
 			ec_encode_data(block_size, k, err_count, stripe->table, file_data, &file_data[k]);
 			// printf("encode end\n");
 		}
-		for(i = 0; i < block_size; i++) {
-			printf("%c", file_data[k][i]);
-		}
-		printf("\n");
+		// for(i = 0; i < block_size; i++) {
+		// 	printf("%c", file_data[k][i]);
+		// }
+		// printf("\n");
 		// printf("error_count: %d\n", err_count);
 		// printf("err_row_inds:");
 		// for(i = 0; i < n-k; i++) {
