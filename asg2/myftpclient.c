@@ -108,12 +108,14 @@ void decode_file(int *effective_ids, char *filename, unsigned long long filesize
 	for(i = 0; i < k; i++) {
 		printf(" %d", status[i]);
 	}
+	printf("\n");
 	// setup decode matrix
 	int err_count = 0;
 	int err_row_inds[n-k];
 	for(i = 0; i < k; i++) {
 		if(status[i] == 0) { // data at row i is lost
 			err_row_inds[err_count] = i;
+			printf("err_row_inds[%d] = %d\n", err_count, i);
 			for(j = 0; j < k; j++) {
 				decode_matrix[err_count*k + j] = invert_matrix[i*k + j];
 			}
