@@ -153,7 +153,7 @@ void decode_file(int *effective_ids, char *filename, unsigned long long filesize
 	for(i = 0; i < k; i++) {
 		if(status[i] == 1) { // data row i is alive
 			for(j = 0; j < k; j++) {
-				if(effective_ids[j] == i) { restore_order[i] = j; break;}
+				if(effective_ids[j]-1 == i) { restore_order[i] = j; break;}
 			}
 		}
 		else { // data row i is dead, in restore
