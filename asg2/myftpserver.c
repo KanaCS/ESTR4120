@@ -123,11 +123,11 @@ void get(int sd, char *file_name) {
    	fseek(fd, 0, SEEK_SET);
 
    	int s = 0;
-   	buff = malloc(sizeof(char)* (BATCH_SIZE + 10));
-   	unsigned long long req_batch = file_len / BATCH_SIZE + 1;
+   	buff = malloc(sizeof(char)* (block_size + 10));
+   	unsigned long long req_batch = file_len / block_size + 1;
    	struct message_s FILE_DATA; strcpy(FILE_DATA.protocol,"myftp"); FILE_DATA.type = 0xFF;
    	for(i = 0; i < req_batch; i++) {
-       	s = fread(&buff[10], 1, BATCH_SIZE, fd);
+       	s = fread(&buff[10], 1, block_size, fd);
        	FILE_DATA.length = ntohl(s+10);
        	memcpy(buff, &FILE_DATA, 10);
        	if( (len = sendn(sd, (void *)buff, s+10)) < 0) {
@@ -160,8 +160,8 @@ void put(int sd, char *file_name){
 	if(fp == NULL) {
 		perror("Write file error\n"); exit(1);
 	}
-	char *buff = (char*)malloc(sizeof(char)*(BATCH_SIZE+10));
-	// memset(buff, '\0', sizeof(char)*(BATCH_SIZE+10));
+	char *buff = (char*)malloc(sizeof(char)*(block_size+10));
+	// memset(buff, '\0', sizeof(char)*(block_size+10));
 
 	memcpy(PUT_REPLY.protocol,"myftp",5);
 	PUT_REPLY.type = 0xC2;
