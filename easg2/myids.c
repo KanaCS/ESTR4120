@@ -1,9 +1,3 @@
-/*
- * sniffer.cc
- * - Use the libpcap library to write a sniffer.
- *   By Patrick P. C. Lee.
- */
-
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
