@@ -172,9 +172,12 @@ int main(int argc, char** argv) {
 
 	Element** tables[2];
 	unsigned int current_epoch = 0;
-	int i;
+	int i, j;
 	for(i = 0; i < 2; i++) {
 		tables[i] = (Element**) malloc(sizeof(Element *) * 10000);
+		for(j = 0; j < 10000; j++) {
+			tables[i][j] = NULL;
+		}
 	}
 
 
