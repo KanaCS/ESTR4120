@@ -102,6 +102,7 @@ void free_helper(Element* t) {
 	Element* head = t;
 	while(t->next != NULL) {
 		length++;
+		t = t->next;
 	}
 	Element** table = (Element** )malloc(sizeof(Element* ) * length);
 	int i;
@@ -223,7 +224,7 @@ int main(int argc, char** argv) {
 			}
 			double current_byte_count = update(tables[current_epoch % 2], src_ip, ip_payload_size);
 			print_ip(src_ip);
-			printf(": %.6lf MB\n", current_byte_count);
+			// printf(": %.6lf MB\n", current_byte_count);
 			if(current_byte_count > hh_thresh) {
 				printf("Time %.6lf: Heavy hitter, \n", pkt_ts);
 				print_ip(src_ip);
