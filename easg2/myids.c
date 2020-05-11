@@ -11,7 +11,6 @@
 
 #define ETH_HDR_LEN 14
 
-
 unsigned short checksum(unsigned char *ip_hdr)
 {   
     char buf[20];  
@@ -40,6 +39,83 @@ unsigned short checksum(unsigned char *ip_hdr)
     return(~sum);
 }
 
+typedef struct element {
+	struct element* next;
+	unsigned int ip_addr;
+	double cumu_byte_count; // in units of 10^6 Bytes
+} Element;
+
+double update(Element** table, unsigned int ip_addr, unsigned int payload_size) { // return cumulative byte count
+	unsigned int ind = ip_addr % 10000;
+	if(table[ind] == NULL) {
+		// add new entry
+		table[ind] = (Element *) malloc(sizeof(Element));
+		table[ind]->next = NULL;
+		table[ind]->ip_addr = ip_addr;
+		table[ind]->cumu_byte_count = payload_size/1.0E6;
+		return table[ind]->cumu_byte_count;
+	}
+	else {
+		Element* target;
+		target = table[ind];
+		while(target->ip_addr != ip_addr) {
+			if(target->next != NULL) {
+				target = target->next;
+			}
+			else {
+				// add new entry
+				target->next = (Element *) malloc(sizeof(Element));
+				target->next->next = NULL;
+				target->next->ip_addr = ip_addr;
+				target->next->cumu_byte_count = payload_size/1.0E6;
+				return target->next->cumu_byte_count;
+			}
+		}
+		// entry found, update byte count
+		target->cumu_byte_count += payload_size/1.0E6;
+		return target->cumu_byte_count;
+	}
+}
+
+double query(Element** table, unsigned int ip_addr) {
+	unsigned int ind = ip_addr % 10000;
+	if(table[ind] == NULL) {
+		return 0.0;
+	}
+	else {
+		Element* target;
+		target = table[ind];
+		while(target->ip_addr != ip_addr) {
+			if(target->next != NULL) {
+				target = target->next;
+			} 
+			else {
+				return 0.0;
+			}
+		}
+		return target->cumu_byte_count;
+	}
+}
+
+void free_helper(Element* t) {
+	if(t->next == NULL) {
+		free(t);
+	}
+	else {
+		free_helper(t->next);
+		free(t);
+	}
+}
+
+void clear_table(Element** table) {
+	int i;
+	for(i = 0; i < 10000; i++) {
+		if(table[i] != NULL) {
+			free_helper(table[i]);
+		}
+	}
+}
+
 /***************************************************************************
  * Main program
  ***************************************************************************/
@@ -51,7 +127,8 @@ int main(int argc, char** argv) {
 	double hh_thresh = atof(argv[1]);
 	double hc_thresh = atof(argv[2]);
 	double ss_thresh = atof(argv[3]);
-	// double epoch = atof(argv[4]); //struct timeval epoch?
+	double epoch = atof(argv[4]); //struct timeval epoch?
+	epoch = epoch / 1000;
 
 	unsigned int no_obs_pkts = 0;
 	unsigned int no_ipv4_pkts = 0;
@@ -66,6 +143,7 @@ int main(int argc, char** argv) {
 	struct pcap_pkthdr hdr;
 	const u_char* pkt;					// raw packet
 	double pkt_ts;						// raw packet timestamp
+	double start_ts;
 
 	struct ip* ip_hdr = NULL;
 	struct tcphdr* tcp_hdr = NULL;
@@ -75,6 +153,14 @@ int main(int argc, char** argv) {
 	unsigned short src_port;
 	unsigned short dst_port;
 
+	Element** tables[2];
+	unsigned int current_epoch = 0;
+	int i;
+	for(i = 0; i < 2; i++) {
+		tables[i] = (Element**) malloc(sizeof(Element *) * 10000);
+	}
+
+
 	// open input pcap file                                         
 	if ((pcap = pcap_open_offline("trace.pcap", errbuf)) == NULL) {
 		fprintf(stderr, "ERR: cannot open %s (%s)\n", "trace.pcap", errbuf);
@@ -83,7 +169,11 @@ int main(int argc, char** argv) {
 
 	while ((pkt = pcap_next(pcap, &hdr)) != NULL) {
 			// get the timestamp
+
 			pkt_ts = (double)hdr.ts.tv_usec / 1000000 + hdr.ts.tv_sec;
+			if(no_obs_pkts == 0) {
+				start_ts = pkt_ts;
+			}
 
 			ip_hdr = (struct ip*)pkt;
 			
@@ -103,7 +193,20 @@ int main(int argc, char** argv) {
 			// IP addresses are in network-byte order	
 			src_ip = ip_hdr->ip_src.s_addr;
 			dst_ip = ip_hdr->ip_dst.s_addr;
-
+			if( (unsigned int)((pkt_ts - start_ts)/epoch) > current_epoch) {
+				current_epoch = (unsigned int)((pkt_ts - start_ts)/epoch);
+				clear_table(epoch_table[current_epoch % 2]);
+			}
+			double current_byte_count = update(epoch_table[current_epoch % 2], src_ip, ip_payload_size);
+			if(current_byte_count > hh_thresh) {
+				printf("Time %.8lf: Heavy hitter, %d.%d.%d.%d\n", pkt_ts, (src_ip>>(8*3)) & 0xFF, (src_ip>>(8*2)) & 0xFF, (src_ip>>(8*1)) & 0xFF, src_ip & 0xFF);
+			}
+			if(current_epoch > 0) {
+				unsigned int prev_count = query(epoch_table[(current_epoch-1) % 2], src_ip);
+				if(abs(current_byte_count - prev_count) > hc_thresh) {
+					printf("Time %.8lf: Heavy changer, %d.%d.%d.%d\n", pkt_ts, (src_ip>>(8*3)) & 0xFF, (src_ip>>(8*2)) & 0xFF, (src_ip>>(8*1)) & 0xFF, src_ip & 0xFF);
+				}
+			}
 			if (ip_hdr->ip_p == IPPROTO_TCP) {
 				no_tcp_pkts += 1;
 				// tcp_hdr = (struct tcphdr*)((u_char*)ip_hdr + 
