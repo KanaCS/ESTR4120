@@ -223,18 +223,18 @@ int main(int argc, char** argv) {
 			}
 			double current_byte_count = update(tables[current_epoch % 2], src_ip, ip_payload_size);
 			print_ip(src_ip);
-			print(": %.6lf MB\n", current_byte_count);
+			printf(": %.6lf MB\n", current_byte_count);
 			if(current_byte_count > hh_thresh) {
 				printf("Time %.6lf: Heavy hitter, \n", pkt_ts);
 				print_ip(src_ip);
-				print("\n");
+				printf("\n");
 			}
 			if(current_epoch > 0) {
 				unsigned int prev_count = query(tables[(current_epoch-1) % 2], src_ip);
 				if(abs(current_byte_count - prev_count) > hc_thresh) {
 					printf("Time %.6lf: Heavy changer, ", pkt_ts);
 					print_ip(src_ip);
-					print("\n");
+					printf("\n");
 				}
 			}
 			if (ip_hdr->ip_p == IPPROTO_TCP) {
