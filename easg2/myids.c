@@ -130,6 +130,7 @@ void clear_table(Element** table) {
 	for(i = 0; i < 10000; i++) {
 		if(table[i] != NULL) {
 			free_helper(table[i]);
+			table[i] = NULL;
 		}
 	}
 }
