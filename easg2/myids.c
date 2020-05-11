@@ -195,14 +195,14 @@ int main(int argc, char** argv) {
 			dst_ip = ip_hdr->ip_dst.s_addr;
 			if( (unsigned int)((pkt_ts - start_ts)/epoch) > current_epoch) {
 				current_epoch = (unsigned int)((pkt_ts - start_ts)/epoch);
-				clear_table(epoch_table[current_epoch % 2]);
+				clear_table(tables[current_epoch % 2]);
 			}
-			double current_byte_count = update(epoch_table[current_epoch % 2], src_ip, ip_payload_size);
+			double current_byte_count = update(tables[current_epoch % 2], src_ip, ip_payload_size);
 			if(current_byte_count > hh_thresh) {
 				printf("Time %.8lf: Heavy hitter, %d.%d.%d.%d\n", pkt_ts, (src_ip>>(8*3)) & 0xFF, (src_ip>>(8*2)) & 0xFF, (src_ip>>(8*1)) & 0xFF, src_ip & 0xFF);
 			}
 			if(current_epoch > 0) {
-				unsigned int prev_count = query(epoch_table[(current_epoch-1) % 2], src_ip);
+				unsigned int prev_count = query(tables[(current_epoch-1) % 2], src_ip);
 				if(abs(current_byte_count - prev_count) > hc_thresh) {
 					printf("Time %.8lf: Heavy changer, %d.%d.%d.%d\n", pkt_ts, (src_ip>>(8*3)) & 0xFF, (src_ip>>(8*2)) & 0xFF, (src_ip>>(8*1)) & 0xFF, src_ip & 0xFF);
 				}
