@@ -139,6 +139,15 @@ void print_ip(unsigned int ip) {
 	printf("%d.%d.%d.%d", ip & 0xFF, (ip>>(8*1)) & 0xFF, (ip>>(8*2)) & 0xFF, (ip>>(8*3)) & 0xFF);
 }
 
+double abs_double(double d) {
+	if(d<0) {
+		return -d;
+	}
+	else {
+		return d;
+	}
+}
+
 /***************************************************************************
  * Main program
  ***************************************************************************/
@@ -224,19 +233,20 @@ int main(int argc, char** argv) {
 				clear_table(tables[current_epoch % 2]);
 			}
 			double current_byte_count = update(tables[current_epoch % 2], src_ip, ip_payload_size);
-			// print_ip(src_ip);
-			// printf(": %.6lf MB\n", current_byte_count);
+			print_ip(src_ip);
+			printf(": %.6lf MB\n", current_byte_count);
 			if(current_byte_count > hh_thresh) {
 				printf("pkt %d ", no_obs_pkts);
-				printf("Time %.6lf: Heavy hitter of %.2lfMB, ", pkt_ts, current_byte_count);
+				printf("Time %.6lf: Heavy hitter of %.6lfMB, ", pkt_ts, current_byte_count);
 				print_ip(src_ip);
 				printf("\n");
 			}
 			if(current_epoch > 0) {
 				unsigned int prev_count = query(tables[(current_epoch-1) % 2], src_ip);
-				if(abs(current_byte_count - prev_count) > hc_thresh) {
+				// printf("change: %.6lfMB\n", abs_double(current_byte_count - prev_count));
+				if(abs_double(current_byte_count - prev_count) > hc_thresh) {
 					printf("pkt %d ", no_obs_pkts);
-					printf("Time %.6lf: Heavy changer of changing %.2lfMB, ", pkt_ts, abs(current_byte_count - prev_count));
+					printf("Time %.6lf: Heavy changer of changing %.6lfMB, ", pkt_ts, abs_double(current_byte_count - prev_count));
 					print_ip(src_ip);
 					printf("\n");
 				}
