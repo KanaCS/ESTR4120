@@ -136,7 +136,7 @@ void clear_table(Element** table) {
 }
 
 void print_ip(unsigned int ip) {
-	printf("%d.%d.%d.%d", (ip>>(8*3)) & 0xFF, (ip>>(8*2)) & 0xFF, (ip>>(8*1)) & 0xFF, ip & 0xFF);
+	printf("%d.%d.%d.%d", ip & 0xFF, (ip>>(8*1)) & 0xFF, (ip>>(8*2)) & 0xFF, (ip>>(8*3)) & 0xFF);
 }
 
 /***************************************************************************
@@ -160,7 +160,7 @@ int main(int argc, char** argv) {
 	unsigned int no_tcp_pkts = 0;
 	unsigned int no_udp_pkts = 0;
 	unsigned int no_icmp_pkts = 0;
-
+	unsigned int total_payload_size = 0;
 	pcap_t* pcap;
 	char errbuf[256];
 	struct pcap_pkthdr hdr;
@@ -214,8 +214,8 @@ int main(int argc, char** argv) {
 				no_valid_pkts += 1;
 			}
 
-			ip_payload_size = ip_hdr->ip_len - (ip_hdr->ip_hl << 2);
-
+			ip_payload_size = ntohs(ip_hdr->ip_len) - ((unsigned int)(ip_hdr->ip_hl) << 2);
+			total_payload_size += ip_payload_size;
 			// IP addresses are in network-byte order	
 			src_ip = ip_hdr->ip_src.s_addr;
 			dst_ip = ip_hdr->ip_dst.s_addr;
@@ -224,21 +224,21 @@ int main(int argc, char** argv) {
 				clear_table(tables[current_epoch % 2]);
 			}
 			double current_byte_count = update(tables[current_epoch % 2], src_ip, ip_payload_size);
-			// print_ip(src_ip);
-			// printf(": %.6lf MB\n", current_byte_count);
+			print_ip(src_ip);
+			printf(": %.6lf MB\n", current_byte_count);
 			if(current_byte_count > hh_thresh) {
-				printf("pkt %d", no_obs_pkts);
-				printf("Time %.6lf: Heavy hitter of %.2lfMB, ", pkt_ts, current_byte_count);
-				print_ip(src_ip);
-				printf("\n");
+				// printf("pkt %d ", no_obs_pkts);
+				// printf("Time %.6lf: Heavy hitter of %.2lfMB, ", pkt_ts, current_byte_count);
+				// print_ip(src_ip);
+				// printf("\n");
 			}
 			if(current_epoch > 0) {
 				unsigned int prev_count = query(tables[(current_epoch-1) % 2], src_ip);
 				if(abs(current_byte_count - prev_count) > hc_thresh) {
-					printf("pkt %d", no_obs_pkts);
-					printf("Time %.6lf: Heavy changer of changing %.2lfMB, ", pkt_ts, abs(current_byte_count - prev_count));
-					print_ip(src_ip);
-					printf("\n");
+					// printf("pkt %d ", no_obs_pkts);
+					// printf("Time %.6lf: Heavy changer of changing %.2lfMB, ", pkt_ts, abs(current_byte_count - prev_count));
+					// print_ip(src_ip);
+					// printf("\n");
 				}
 			}
 			if (ip_hdr->ip_p == IPPROTO_TCP) {
