@@ -224,7 +224,7 @@ int main(int argc, char** argv) {
 				clear_table(tables[current_epoch % 2]);
 			}
 			double current_byte_count = update(tables[current_epoch % 2], src_ip, ip_payload_size);
-			print_ip(src_ip);
+			// print_ip(src_ip);
 			// printf(": %.6lf MB\n", current_byte_count);
 			if(current_byte_count > hh_thresh) {
 				printf("Time %.6lf: Heavy hitter, \n", pkt_ts);
