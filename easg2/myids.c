@@ -39,13 +39,19 @@ unsigned short checksum(unsigned char *ip_hdr)
     return(~sum);
 }
 
+typedef struct ips{
+	unsigned int ip;
+	struct ips* next;
+} Des_ips;
+
 typedef struct element {
 	struct element* next;
 	unsigned int ip_addr;
 	double cumu_byte_count; // in units of 10^6 Bytes
+	Des_ips *des_ip;
 } Element;
 
-double update(Element** table, unsigned int ip_addr, unsigned int payload_size) { // return cumulative byte count
+double update(Element** table, unsigned int ip_addr, unsigned int payload_size, unsigned int dip) { // return cumulative byte count
 	unsigned int ind = ip_addr % 10000;
 	if(table[ind] == NULL) {
 		// add new entry
@@ -53,6 +59,9 @@ double update(Element** table, unsigned int ip_addr, unsigned int payload_size) 
 		table[ind]->next = NULL;
 		table[ind]->ip_addr = ip_addr;
 		table[ind]->cumu_byte_count = payload_size/1.0E6;
+		table[ind]->des_ip = (Des_ips *) malloc(sizeof(Des_ips));
+		table[ind]->des_ip->ip = dip;
+		table[ind]->des_ip->next = NULL;
 		return table[ind]->cumu_byte_count;
 	}
 	else {
@@ -68,13 +77,42 @@ double update(Element** table, unsigned int ip_addr, unsigned int payload_size) 
 				target->next->next = NULL;
 				target->next->ip_addr = ip_addr;
 				target->next->cumu_byte_count = payload_size/1.0E6;
+				target->next->des_ip = (Des_ips *) malloc(sizeof(Des_ips));
+				target->next->des_ip->ip = dip;
+				target->next->des_ip->next = NULL;
 				return target->next->cumu_byte_count;
 			}
 		}
 		// entry found, update byte count
 		target->cumu_byte_count += payload_size/1.0E6;
+		//update des_ip list
+		Des_ips* desip = target->des_ip;
+		while(desip->ip != dip){
+			if(desip->next != NULL){
+				desip = desip->next;
+			}
+			else{
+				//add new entry
+				desip->next = (Des_ips *) malloc(sizeof(Des_ips));
+				desip->next->ip = dip;
+				desip->next->next = NULL;
+			}
+		}
+		//entry found then do nothing
 		return target->cumu_byte_count;
 	}
+}
+
+unsigned int count_dstip(Element** table, unsigned int ip_addr){
+	unsigned int ind = ip_addr % 10000;
+	Des_ips* target;
+	target = table[ind]->des_ip;
+	unsigned int count = 1;
+	while(target->next != NULL){
+		count ++;
+		target = target->next;
+	}
+	return count;
 }
 
 double query(Element** table, unsigned int ip_addr) {
@@ -158,7 +196,7 @@ int main(int argc, char** argv) {
 	}
 	double hh_thresh = atof(argv[1]);
 	double hc_thresh = atof(argv[2]);
-	double ss_thresh = atof(argv[3]);
+	unsigned int ss_thresh = atoi(argv[3]);
 	double epoch = atof(argv[4]); //struct timeval epoch?
 	epoch = epoch / 1000;
 
@@ -178,12 +216,9 @@ int main(int argc, char** argv) {
 	double start_ts;
 
 	struct ip* ip_hdr = NULL;
-	struct tcphdr* tcp_hdr = NULL;
 
 	unsigned int src_ip;
 	unsigned int dst_ip;
-	unsigned short src_port;
-	unsigned short dst_port;
 
 	Element** tables[2];
 	unsigned int current_epoch = 0;
@@ -232,7 +267,7 @@ int main(int argc, char** argv) {
 				current_epoch = (unsigned int)((pkt_ts - start_ts)/epoch);
 				clear_table(tables[current_epoch % 2]);
 			}
-			double current_byte_count = update(tables[current_epoch % 2], src_ip, ip_payload_size);
+			double current_byte_count = update(tables[current_epoch % 2], src_ip, ip_payload_size, dst_ip);
 			// print_ip(src_ip);
 			// printf(": %.6lf MB\n", current_byte_count);
 			if(current_byte_count > hh_thresh) {
@@ -250,6 +285,13 @@ int main(int argc, char** argv) {
 					print_ip(src_ip);
 					printf("\n");
 				}
+			}
+			unsigned int no_des_ip = count_dstip(tables[current_epoch % 2], src_ip);
+			if(no_des_ip > ss_thresh){
+				printf("pkt %d ", no_obs_pkts);
+				printf("Time %.6lf: Superspreader of %x, ", pkt_ts, no_des_ip);
+				print_ip(src_ip);
+				printf("\n");
 			}
 			if (ip_hdr->ip_p == IPPROTO_TCP) {
 				no_tcp_pkts += 1;
