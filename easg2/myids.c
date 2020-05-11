@@ -98,13 +98,30 @@ double query(Element** table, unsigned int ip_addr) {
 }
 
 void free_helper(Element* t) {
-	if(t->next == NULL) {
-		free(t);
+	unsigned int length = 1;
+	Element* head = t;
+	while(t->next != NULL) {
+		length++;
 	}
-	else {
-		free_helper(t->next);
-		free(t);
+	Element** table = (Element** )malloc(sizeof(Element* ) * length);
+	int i;
+	t = head;
+	for(i = length-1; i > 0; i--) {
+		table[i] = t;
+		t = t->next;
 	}
+	table[0] = t;
+	for(i = 0; i <length; i++) {
+		free(table[i]);
+	}
+	free(table);
+	// if(t->next == NULL) {
+	// 	free(t);
+	// }
+	// else {
+	// 	free_helper(t->next);
+	// 	free(t);
+	// }
 }
 
 void clear_table(Element** table) {
@@ -199,12 +216,12 @@ int main(int argc, char** argv) {
 			}
 			double current_byte_count = update(tables[current_epoch % 2], src_ip, ip_payload_size);
 			if(current_byte_count > hh_thresh) {
-				printf("Time %.8lf: Heavy hitter, %d.%d.%d.%d\n", pkt_ts, (src_ip>>(8*3)) & 0xFF, (src_ip>>(8*2)) & 0xFF, (src_ip>>(8*1)) & 0xFF, src_ip & 0xFF);
+				printf("Time %.6lf: Heavy hitter, %d.%d.%d.%d\n", pkt_ts, (src_ip>>(8*3)) & 0xFF, (src_ip>>(8*2)) & 0xFF, (src_ip>>(8*1)) & 0xFF, src_ip & 0xFF);
 			}
 			if(current_epoch > 0) {
 				unsigned int prev_count = query(tables[(current_epoch-1) % 2], src_ip);
 				if(abs(current_byte_count - prev_count) > hc_thresh) {
-					printf("Time %.8lf: Heavy changer, %d.%d.%d.%d\n", pkt_ts, (src_ip>>(8*3)) & 0xFF, (src_ip>>(8*2)) & 0xFF, (src_ip>>(8*1)) & 0xFF, src_ip & 0xFF);
+					printf("Time %.6lf: Heavy changer, %d.%d.%d.%d\n", pkt_ts, (src_ip>>(8*3)) & 0xFF, (src_ip>>(8*2)) & 0xFF, (src_ip>>(8*1)) & 0xFF, src_ip & 0xFF);
 				}
 			}
 			if (ip_hdr->ip_p == IPPROTO_TCP) {
@@ -228,9 +245,7 @@ int main(int argc, char** argv) {
 			} 
 			else if (ip_hdr->ip_p == IPPROTO_ICMP) {
 				no_icmp_pkts += 1;
-			} 
-
-
+			}
 		
 	}
 	//print stat
