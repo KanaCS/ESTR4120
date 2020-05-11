@@ -227,7 +227,7 @@ int main(int argc, char** argv) {
 			// print_ip(src_ip);
 			// printf(": %.6lf MB\n", current_byte_count);
 			if(current_byte_count > hh_thresh) {
-				printf("Time %.6lf: Heavy hitter, \n", pkt_ts);
+				printf("Time %.6lf: Heavy hitter, ", pkt_ts);
 				print_ip(src_ip);
 				printf("\n");
 			}
