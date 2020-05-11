@@ -227,14 +227,16 @@ int main(int argc, char** argv) {
 			// print_ip(src_ip);
 			// printf(": %.6lf MB\n", current_byte_count);
 			if(current_byte_count > hh_thresh) {
-				printf("Time %.6lf: Heavy hitter, ", pkt_ts);
+				printf("pkt %d", no_obs_pkts);
+				printf("Time %.6lf: Heavy hitter of %.2lfMB, ", pkt_ts, current_byte_count);
 				print_ip(src_ip);
 				printf("\n");
 			}
 			if(current_epoch > 0) {
 				unsigned int prev_count = query(tables[(current_epoch-1) % 2], src_ip);
 				if(abs(current_byte_count - prev_count) > hc_thresh) {
-					printf("Time %.6lf: Heavy changer, ", pkt_ts);
+					printf("pkt %d", no_obs_pkts);
+					printf("Time %.6lf: Heavy changer of changing %.2lfMB, ", pkt_ts, abs(current_byte_count - prev_count));
 					print_ip(src_ip);
 					printf("\n");
 				}
