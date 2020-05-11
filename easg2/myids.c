@@ -243,7 +243,7 @@ int main(int argc, char** argv) {
 			}
 			if(current_epoch > 0) {
 				unsigned int prev_count = query(tables[(current_epoch-1) % 2], src_ip);
-				printf("change: %.6lfMB\n", abs_double(current_byte_count - prev_count));
+				// printf("change: %.6lfMB\n", abs_double(current_byte_count - prev_count));
 				if(abs_double(current_byte_count - prev_count) > hc_thresh) {
 					printf("pkt %d ", no_obs_pkts);
 					printf("Time %.6lf: Heavy changer of changing %.6lfMB, ", pkt_ts, abs_double(current_byte_count - prev_count));
