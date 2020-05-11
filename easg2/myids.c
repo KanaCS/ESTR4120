@@ -134,7 +134,7 @@ void clear_table(Element** table) {
 }
 
 void print_ip(unsigned int ip) {
-	print("%d.%d.%d.%d", (ip>>(8*3)) & 0xFF, (ip>>(8*2)) & 0xFF, (ip>>(8*1)) & 0xFF, ip & 0xFF);
+	printf("%d.%d.%d.%d", (ip>>(8*3)) & 0xFF, (ip>>(8*2)) & 0xFF, (ip>>(8*1)) & 0xFF, ip & 0xFF);
 }
 
 /***************************************************************************
