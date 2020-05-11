@@ -224,21 +224,21 @@ int main(int argc, char** argv) {
 				clear_table(tables[current_epoch % 2]);
 			}
 			double current_byte_count = update(tables[current_epoch % 2], src_ip, ip_payload_size);
-			print_ip(src_ip);
-			printf(": %.6lf MB\n", current_byte_count);
+			// print_ip(src_ip);
+			// printf(": %.6lf MB\n", current_byte_count);
 			if(current_byte_count > hh_thresh) {
-				// printf("pkt %d ", no_obs_pkts);
-				// printf("Time %.6lf: Heavy hitter of %.2lfMB, ", pkt_ts, current_byte_count);
-				// print_ip(src_ip);
-				// printf("\n");
+				printf("pkt %d ", no_obs_pkts);
+				printf("Time %.6lf: Heavy hitter of %.2lfMB, ", pkt_ts, current_byte_count);
+				print_ip(src_ip);
+				printf("\n");
 			}
 			if(current_epoch > 0) {
 				unsigned int prev_count = query(tables[(current_epoch-1) % 2], src_ip);
 				if(abs(current_byte_count - prev_count) > hc_thresh) {
-					// printf("pkt %d ", no_obs_pkts);
-					// printf("Time %.6lf: Heavy changer of changing %.2lfMB, ", pkt_ts, abs(current_byte_count - prev_count));
-					// print_ip(src_ip);
-					// printf("\n");
+					printf("pkt %d ", no_obs_pkts);
+					printf("Time %.6lf: Heavy changer of changing %.2lfMB, ", pkt_ts, abs(current_byte_count - prev_count));
+					print_ip(src_ip);
+					printf("\n");
 				}
 			}
 			if (ip_hdr->ip_p == IPPROTO_TCP) {
@@ -269,7 +269,7 @@ int main(int argc, char** argv) {
 	printf("the total number of observed packets: %d\n",no_obs_pkts);
 	printf("the total number of observed IPv4 packets: %d\n",no_ipv4_pkts);
 	printf("the total number of valid IPv4 packets that pass the checksum test: %d\n",no_valid_pkts);
-	printf("the total IP payload size(valid IPv4 packets only): %d\n",ip_payload_size);
+	printf("the total IP payload size(valid IPv4 packets only): %d\n",total_payload_size);
 	printf("the total number of TCP packets (valid IPv4 packets only): %d\n",no_tcp_pkts);
 	printf("the total number of UDP packets (valid IPv4 packets only): %d\n",no_udp_pkts);
 	printf("the total number of ICMP packets (valid IPv4 packets only): %d\n",no_icmp_pkts);
