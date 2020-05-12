@@ -8,6 +8,7 @@
 #include <netinet/ether.h>
 #include <netinet/ip.h>
 #include <netinet/tcp.h>
+#include <string.h>
 
 #define ETH_HDR_LEN 14
 
@@ -190,14 +191,16 @@ double abs_double(double d) {
  * Main program
  ***************************************************************************/
 int main(int argc, char** argv) {
-	if(argc != 5){
-		fprintf(stderr, "Usage: ./myids <hh_thresh> <hc_thresh> <ss_thresh> <epoch>");
+	if(argc != 6){
+		fprintf(stderr, "Usage: ./myids <hh_thresh> <hc_thresh> <ss_thresh> <epoch> <pcap_file_path>");
 		exit(1);
 	}
 	double hh_thresh = atof(argv[1]);
 	double hc_thresh = atof(argv[2]);
 	unsigned int ss_thresh = atoi(argv[3]);
 	double epoch = atof(argv[4]); //struct timeval epoch?
+	char filename[100];
+    strcpy(filename, argv[5]);
 	epoch = epoch / 1000;
 
 	unsigned int no_obs_pkts = 0;
@@ -232,8 +235,8 @@ int main(int argc, char** argv) {
 
 
 	// open input pcap file                                         
-	if ((pcap = pcap_open_offline("trace.pcap", errbuf)) == NULL) {
-		fprintf(stderr, "ERR: cannot open %s (%s)\n", "trace.pcap", errbuf);
+	if ((pcap = pcap_open_offline(filename, errbuf)) == NULL) {
+		fprintf(stderr, "ERR: cannot open %s (%s)\n", filename, errbuf);
 		exit(-1);
 	}
 
