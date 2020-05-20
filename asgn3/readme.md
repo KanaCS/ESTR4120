@@ -21,3 +21,13 @@ sudo iptables -L
 sudo ./nat 10.3.1.36 10.0.36.0 24 100 1 //vma
 
 echo "AAAA" | nc -uv 137.189.88.153 10100 //vmb or vmc
+
+# TO DO
+- [X] Translation expiry requiremen
+- [X] Inbound & Outbound
+- [ ] ICMP error translation (what actually needed to be done lol cannot understand spec
+- [ ] DEBUG Inbound (half done, not yet check delivery if package //dont know how to check QAQ 
+- [ ] DEBUG Outbound 
+- [ ] Token bucket: hv not use it yet in forwarding of pkt
+- [ ] Threads
+
