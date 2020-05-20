@@ -13,7 +13,7 @@
 #include <netinet/tcp.h>    // required by "struct tcph"
 #include <netinet/udp.h>    // required by "struct udph"
 #include <netinet/ip_icmp.h>    // required by "struct icmphdr"
-
+#include "nat.h"
 extern "C" {
 #include <linux/netfilter.h> // required by NF_ACCEPT, NF_DROP, etc...
 #include <libnetfilter_queue/libnetfilter_queue.h>
@@ -23,8 +23,12 @@ extern "C" {
 
 #define BUF_SIZE 1500
 
+struct in_addr ip;
+struct in_addr lan;
+int mask=0;
+
 static int Callback(struct nfq_q_handle *myQueue, struct nfgenmsg *msg,
-                  nfq_data* pkt, void *cbData) {
+                nfq_data* pkt, void *cbData) {
   unsigned int id = 0;
   nfqnl_msg_packet_hdr *header;
 
@@ -36,6 +40,32 @@ static int Callback(struct nfq_q_handle *myQueue, struct nfgenmsg *msg,
           printf("  hook: %u\n", header->hook);
   }
 
+  unsigned char *pktData;
+  int len = nfq_get_payload(pkt, (unsigned char**)&pktData);
+  struct iphdr *iph = (struct iphdr *)pktData;
+  struct udphdr *udph =(struct udphdr *) (((char*)iph) + iph->ihl*4);
+  unsigned char* appData = pktData + iph->ihl * 4 + 8;
+
+  if (iph->protocol != IPPROTO_UDP) {
+      printf("drop pkt other than udp\n");
+      return nfq_set_verdict(myQueue, id, NF_DROP, 0, NULL);
+  }
+  unsigned int local_mask = 0xffffffff << (32 - mask);
+  unsigned int lan_int = ntohl(lan.s_addr);
+  unsigned int local_network = local_mask & lan_int;  
+printf("%d \t %d\n",local_network,ntohl(iph->saddr));
+
+  if ((ntohl(iph->saddr) & local_mask) == local_network) {
+	printf("outbound\n");  
+	// outbound traffic
+	//modify source IP to the public IP of gateway
+	//allocate a port
+  } else {
+	printf("inbound\n");
+	// inbound traffic
+	//convert the (DestIP, port) to the original (IP, port)
+  }
+/*
   // print the timestamp (PC: seems the timestamp is not always set)
   struct timeval tv;
   if (!nfq_get_timestamp(pkt, &tv)) {
@@ -43,12 +73,10 @@ static int Callback(struct nfq_q_handle *myQueue, struct nfgenmsg *msg,
   } else {
           printf("  timestamp: nil\n");
   }
-
+*/
   // Print the payload; in copy meta mode, only headers will be
   // included; in copy packet mode, whole packet will be returned.
   printf(" payload: ");
-  unsigned char *pktData;
-  int len = nfq_get_payload(pkt, (unsigned char**)&pktData);
   if (len > 0) {
           for (int i=0; i<len; ++i) {
                   printf("%02x ", pktData[i]);
@@ -56,25 +84,22 @@ static int Callback(struct nfq_q_handle *myQueue, struct nfgenmsg *msg,
   }
   printf("\n");
 
-  // add a newline at the end
-  printf("\n");
-
-
-  // For this program we'll always accept the packet...
   return nfq_set_verdict(myQueue, id, NF_ACCEPT, 0, NULL);
 }
 
 
 int main(int argc, char** argv) {
 
+  if(argc != 6){
     fprintf(stderr, "Usage: sudo ./nat <IP> <LAN> <MASK> <bucket size> <fill rate>\n");
     exit(1);
   }
-  char ip[30];
-  strcpy(ip,argv[1]);
-  char lan[30];
-  strcpy(lan,argv[2]);
-  int mask = atoi(argv[3]);
+  char ip_s[30],lan_s[30];
+  strcpy(ip_s,argv[1]);
+  strcpy(lan_s,argv[2]);
+  inet_aton(ip_s, &ip);
+  inet_aton(lan_s, &lan);
+  mask = atoi(argv[3]);
   int bsize = atoi(argv[4]);
   int rate = atoi(argv[5]);
 
