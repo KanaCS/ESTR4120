@@ -151,24 +151,6 @@ void free_helper(Element* t) {
 		free(head);
 		head = t;
 	}
-	// unsigned int length = 1;
-	// Element* head = t;
-	// while(t->next != NULL) {
-	// 	length++;
-	// 	t = t->next;
-	// }
-	// Element** table = (Element** )malloc(sizeof(Element* ) * length);
-	// int i;
-	// t = head;
-	// for(i = length-1; i > 0; i--) {
-	// 	table[i] = t;
-	// 	t = t->next;
-	// }
-	// table[0] = t;
-	// for(i = 0; i <length; i++) {
-	// 	free(table[i]);
-	// }
-	// free(table);
 }
 
 void clear_table(Element** table) {
@@ -249,25 +231,28 @@ void check_HC(Element **old_table, Element **new_table, Reported_HC *reported, d
 			t = new_table[j];
 			while(t != NULL && reported_as_HC(reported, t->ip_addr) == 0) {
 				t_prev = query(old_table, t->ip_addr);
-				if(t_prev == NULL) { // entry exist in new_table but not old_table, possible 0 MB -> BIG MB when type == 0 and BIG MB -> 0 MB when type == 1
-					if(t->cumu_byte_count > hc_thresh) {
-						if(type == 0) { // 0 MB -> BIG MB
-							tail = report_HC(0.0, t->cumu_byte_count, t->ip_addr, t->last_pkt_ts, current_epoch, tail);
+				// if(t_prev == NULL) { // entry exist in new_table but not old_table, possible 0 MB -> BIG MB when type == 0 and BIG MB -> 0 MB when type == 1
+				// 	if(t->cumu_byte_count > hc_thresh) {
+				// 		if(type == 0) { // 0 MB -> BIG MB
+				// 			tail = report_HC(0.0, t->cumu_byte_count, t->ip_addr, t->last_pkt_ts, current_epoch, tail);
+				// 		}
+				// 		else { // BIG MB -> 0 MB 
+				// 			tail = report_HC(0.0, t->cumu_byte_count, t->ip_addr, current_epoch_finish_ts, current_epoch, tail);
+				// 		}
+				// 	}
+				// }
+				if(t_prev != NULL) {
+					// host exist in t and t_prev, check | t - t_prev | > threshold
+					if(abs_double(t->cumu_byte_count - t_prev->cumu_byte_count) > hc_thresh) {
+						if(type == 0) {
+							tail = report_HC(t_prev->cumu_byte_count, t->cumu_byte_count, t->ip_addr, t->last_pkt_ts, current_epoch, tail);
 						}
-						else { // BIG MB -> 0 MB 
-							tail = report_HC(0.0, t->cumu_byte_count, t->ip_addr, current_epoch_finish_ts, current_epoch, tail);
+						else {
+							tail = report_HC(t->cumu_byte_count, t_prev->cumu_byte_count, t->ip_addr, t->last_pkt_ts, current_epoch, tail);
 						}
 					}
+					t = t->next;
 				}
-				else if(abs_double(t->cumu_byte_count - t_prev->cumu_byte_count) > hc_thresh) {
-					if(type == 0) {
-						tail = report_HC(t_prev->cumu_byte_count, t->cumu_byte_count, t->ip_addr, t->last_pkt_ts, current_epoch, tail);
-					}
-					else {
-						tail = report_HC(t->cumu_byte_count, t_prev->cumu_byte_count, t->ip_addr, t->last_pkt_ts, current_epoch, tail);
-					}
-				}
-				t = t->next;
 			}
 		}
 	}
@@ -388,19 +373,6 @@ int main(int argc, char** argv) {
 			}
 			if (ip_hdr->ip_p == IPPROTO_TCP) {
 				no_tcp_pkts += 1;
-				// tcp_hdr = (struct tcphdr*)((u_char*)ip_hdr + 
-				// 		(ip_hdr->ip_hl << 2)); 
-				// src_port = ntohs(tcp_hdr->source);
-				// dst_port = ntohs(tcp_hdr->dest);
-
-				// printf("%lf: %d.%d.%d.%d:%d -> %d.%d.%d.%d:%d\n", 
-				// 		pkt_ts, 
-				// 		src_ip & 0xff, (src_ip >> 8) & 0xff, 
-				// 		(src_ip >> 16) & 0xff, (src_ip >> 24) & 0xff, 
-				// 		src_port, 
-				// 		dst_ip & 0xff, (dst_ip >> 8) & 0xff, 
-				// 		(dst_ip >> 16) & 0xff, (dst_ip >> 24) & 0xff, 
-				// 		dst_port);
 			}
 			else if (ip_hdr->ip_p == IPPROTO_UDP) {
 				no_udp_pkts += 1;
