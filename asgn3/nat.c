@@ -103,7 +103,7 @@ int search_dst_port(int dst_port, struct in_addr* targetip, int* targetport ){
 int search_entry(struct in_addr ip, int port, struct timeval tv){
   NAT_TB* table = nat_table;
   while(table!=NULL){
-    if(table->itn_port == port && table->itn_ip->s_addr == ip->s_addr) {
+    if(table->itn_port == port && table->itn_ip.s_addr == ip.s_addr) {
       return table->trans_port;
     }
     else if(table->next==NULL){
@@ -157,7 +157,13 @@ void *translation_thread_run(void *arg) {
     } else {
             printf("  timestamp: nil\n");
     }
-    int targetport = search_entry((struct in_addr)iph->saddr, udph->uh_sport, tv);
+    // char ipadr_s[30];
+    // strcpy(ipadr_s,inet_ntoa(iph->saddr));
+    // struct in_addr ipadr;
+    // inet_aton(&ipadr_s, &ipadr);
+    struct in_addr ipadr;
+    ipadr.s_addr = iph->saddr;
+    int targetport = search_entry(ipadr, udph->uh_sport, tv);
     //BUG: cant type cast
     udph->uh_sport = htons(targetport);
     memcpy(&(iph->saddr),&ip,sizeof(ip));
