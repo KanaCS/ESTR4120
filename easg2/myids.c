@@ -176,41 +176,42 @@ double abs_double(double d) {
 	}
 }
 
-typedef struct reported_HC {
-	struct reported_HC* next;
-	unsigned int ip_addr;
-} Reported_HC;
+// typedef struct reported_HC {
+// 	struct reported_HC* next;
+// 	unsigned int ip_addr;
+// } Reported_HC;
 
-void free_helper_HC(Reported_HC* t) {
-	Reported_HC* head = t;
-	while(head != NULL) {
-		t = head->next;
-		free(head);
-		head = t;
-	}
-}
-int reported_as_HC(Reported_HC *head, unsigned int ip) {
-	while(head != NULL) {
-		if(head->ip_addr == ip) {
-			return 1; // already reported
-		}
-		head = head->next;
-	}
-	return 0; // not yet report
-}
+// void free_helper_HC(Reported_HC* t) {
+// 	Reported_HC* head = t;
+// 	while(head != NULL) {
+// 		t = head->next;
+// 		free(head);
+// 		head = t;
+// 	}
+// }
+// int reported_as_HC(Reported_HC *head, unsigned int ip) {
+// 	while(head != NULL) {
+// 		if(head->ip_addr == ip) {
+// 			return 1; // already reported
+// 		}
+// 		head = head->next;
+// 	}
+// 	return 0; // not yet report
+// }
 
-Reported_HC* report_HC(double from_count, double to_count, unsigned int ip_addr, double ts, unsigned int epoch, Reported_HC *tail) {
+void report_HC(double from_count, double to_count, unsigned int ip_addr, double ts, unsigned int epoch) {
 	printf("Epoch %d ", epoch);
 	printf("Time %.6lf: Heavy changer %.6lfMB -> %.6lfMB, ", ts, from_count, to_count);
 	print_ip(ip_addr);
 	printf("\n");
-	tail->next = (Reported_HC *)malloc(sizeof(Reported_HC));
-	tail->next->next = NULL;
-	tail->next->ip_addr = ip_addr;
-	return tail->next;
+	// tail->next = (Reported_HC *)malloc(sizeof(Reported_HC));
+	// tail->next->next = NULL;
+	// tail->next->ip_addr = ip_addr;
+	// return tail->next;
 }
 
-void check_HC(Element **old_table, Element **new_table, Reported_HC *reported, double hc_thresh, unsigned int current_epoch, double current_epoch_finish_ts, int type) {
+// void check_HC(Element **old_table, Element **new_table, Reported_HC *reported, double hc_thresh, unsigned int current_epoch, double current_epoch_finish_ts, int type) {
+void check_HC(Element **old_table, Element **new_table, double hc_thresh, unsigned int current_epoch, double current_epoch_finish_ts) {
 	// type == 0 means that old_table is epoch-1, new_table is epoch
 	// type == 1 means that old_table is epoch, new_table is epoch-1
 
@@ -222,14 +223,15 @@ void check_HC(Element **old_table, Element **new_table, Reported_HC *reported, d
 	Element *t=NULL;
 	Element *t_prev=NULL;
 	// find tail in reported
-	Reported_HC *tail=reported;
-	while(tail->next != NULL) {
-		tail = tail->next;
-	}
+	// Reported_HC *tail=reported;
+	// while(tail->next != NULL) {
+	// 	tail = tail->next;
+	// }
 	for(j = 0; j < 10000; j++) {
 		if(new_table[j] != NULL) {
 			t = new_table[j];
-			while(t != NULL && reported_as_HC(reported, t->ip_addr) == 0) {
+			// while(t != NULL && reported_as_HC(reported, t->ip_addr) == 0) {
+			while(t != NULL) {
 				t_prev = query(old_table, t->ip_addr);
 				// if(t_prev == NULL) { // entry exist in new_table but not old_table, possible 0 MB -> BIG MB when type == 0 and BIG MB -> 0 MB when type == 1
 				// 	if(t->cumu_byte_count > hc_thresh) {
@@ -243,16 +245,17 @@ void check_HC(Element **old_table, Element **new_table, Reported_HC *reported, d
 				// }
 				if(t_prev != NULL) {
 					// host exist in t and t_prev, check | t - t_prev | > threshold
-					if(abs_double(t->cumu_byte_count - t_prev->cumu_byte_count) > hc_thresh) {
-						if(type == 0) {
-							tail = report_HC(t_prev->cumu_byte_count, t->cumu_byte_count, t->ip_addr, t->last_pkt_ts, current_epoch, tail);
-						}
-						else {
-							tail = report_HC(t->cumu_byte_count, t_prev->cumu_byte_count, t->ip_addr, t->last_pkt_ts, current_epoch, tail);
-						}
+					if(abs_double(t->cumu_byte_count - t_prev->cumu_byte_count) >= hc_thresh) {
+						// if(type == 0) {
+						// 	report_HC(t_prev->cumu_byte_count, t->cumu_byte_count, t->ip_addr, t->last_pkt_ts, current_epoch);
+						// }
+						// else {
+						// 	report_HC(t->cumu_byte_count, t_prev->cumu_byte_count, t->ip_addr, t->last_pkt_ts, current_epoch);
+						// }
+						report_HC(t_prev->cumu_byte_count, t->cumu_byte_count, t->ip_addr, t->last_pkt_ts, current_epoch);
 					}
-					t = t->next;
 				}
+				t = t->next;
 			}
 		}
 	}
@@ -340,12 +343,12 @@ int main(int argc, char** argv) {
 				// start of new epoch = end of current_epoch
 				// check heavy changer here
 				if(current_epoch > 0) {
-					Reported_HC *head = (Reported_HC *) malloc(sizeof(Reported_HC));
-					head->next = NULL;
-					head->ip_addr = 0;
-					check_HC(tables[(current_epoch-1)%2], tables[current_epoch%2], head, hc_thresh, current_epoch, start_ts + (current_epoch+1)*epoch, 0);
-					check_HC(tables[current_epoch%2], tables[(current_epoch-1)%2], head, hc_thresh, current_epoch, start_ts + (current_epoch+1)*epoch, 1);
-					free_helper_HC(head);
+					// Reported_HC *head = (Reported_HC *) malloc(sizeof(Reported_HC));
+					// head->next = NULL;
+					// head->ip_addr = 0;
+					check_HC(tables[(current_epoch-1)%2], tables[current_epoch%2], hc_thresh, current_epoch, start_ts + (current_epoch+1)*epoch);
+					// check_HC(tables[current_epoch%2], tables[(current_epoch-1)%2], head, hc_thresh, current_epoch, start_ts + (current_epoch+1)*epoch, 1);
+					// free_helper_HC(head);
 				}
 				current_epoch = (unsigned int)((pkt_ts - start_ts)/epoch);
 				clear_table(tables[current_epoch % 2]);
