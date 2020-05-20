@@ -26,12 +26,7 @@ extern "C" {
 struct in_addr ip;
 struct in_addr lan;
 int mask=0;
-
-typedef struct tokenbucket {
-  unsigned int size;
-  unsigned int tokens;
-  unsigned int rate;
-} TokenBucket;
+NAT_TB* nat_table = NULL;
 
 pthread_mutex_t bucket_mutex;
 TokenBucket bucket;
@@ -91,6 +86,18 @@ void *token_bucket_thread_run(void *arg) {
   }
 }
 
+int search_dst_port(int dst_port, struct in_addr* targetip, int* targetport ){
+  while(nat_table!=NULL){
+    if(nat_table->trans_port == dst_port) {
+      *targetip = nat_table->itn_ip;
+      *targetport = nat_table->itn_port;
+      return 1;
+    }
+    nat_table = nat_table->next;
+  }
+  return -1;
+}
+
 typedef struct trans_arg{
   unsigned int id;
   struct nfq_q_handle *myQueue;
@@ -126,7 +133,20 @@ void *translation_thread_run(void *arg) {
     //modify source IP to the public IP of gateway
     //allocate a port
   } else {
-	printf("inbound\n");
+    printf("inbound\n");
+    int dst_port = udph->uh_dport;
+    struct in_addr targetip;
+    int targetport;
+    if(search_dst_port(dst_port, &targetip, &targetport)==-1){
+      printf("dst_port not in table, drop the pkt\n");
+      return nfq_set_verdict(myQueue, id, NF_DROP, 0, NULL);
+    }
+    memcpy(&(iph->daddr),&targetip,sizeof(targetip));
+    udph->uh_dport = htons(targetport);
+
+    iph->check = ip_checksum(pktData);
+    udph->check = udp_checksum(pktData);
+
 	// inbound traffic
 	//convert the (DestIP, port) to the original (IP, port)
   }
