@@ -22,3 +22,9 @@ struct nat_tb{
 	struct timeval accesstv;
 	struct nat_tb* next;
 } typedef NAT_TB;
+
+typedef struct tokenbucket {
+  unsigned int size;
+  unsigned int tokens;
+  unsigned int rate;
+} TokenBucket;
