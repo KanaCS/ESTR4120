@@ -24,31 +24,49 @@ extern "C" {
 #define BUF_SIZE 1500
 
 static int Callback(struct nfq_q_handle *myQueue, struct nfgenmsg *msg,
-    struct nfq_data *pkt, void *cbData) {
-  // Get the id in the queue
+                  nfq_data* pkt, void *cbData) {
   unsigned int id = 0;
+  nfqnl_msg_packet_hdr *header;
 
-  // Access IP Packet
-  unsigned char *pktData;
-  int ip_pkt_len = nfq_get_payload(pkt, &pktData);;
-  struct iphdr *ipHeader = (struct iphdr *)pktData;;
-  
-  //check protocol
-  if (iph->protocol == IPPROTO_UDP) {
-  // UDP packets
-    struct udphdr *udph = ;
-  } else {
-  // Others, can be ignored
-    return ;
+  printf("pkt recvd: ");
+  if ((header = nfq_get_msg_packet_hdr(pkt))) {
+          id = ntohl(header->packet_id);
+          printf("  id: %u\n", id);
+          printf("  hw_protocol: %u\n", ntohs(header->hw_protocol));       
+          printf("  hook: %u\n", header->hook);
   }
 
-  return nfq_set_verdict(myQueue, id, NF_ACCEPT, ip_pkt_len, pktData);
+  // print the timestamp (PC: seems the timestamp is not always set)
+  struct timeval tv;
+  if (!nfq_get_timestamp(pkt, &tv)) {
+          printf("  timestamp: %lu.%lu\n", tv.tv_sec, tv.tv_usec);
+  } else {
+          printf("  timestamp: nil\n");
+  }
+
+  // Print the payload; in copy meta mode, only headers will be
+  // included; in copy packet mode, whole packet will be returned.
+  printf(" payload: ");
+  unsigned char *pktData;
+  int len = nfq_get_payload(pkt, (unsigned char**)&pktData);
+  if (len > 0) {
+          for (int i=0; i<len; ++i) {
+                  printf("%02x ", pktData[i]);
+          }
+  }
+  printf("\n");
+
+  // add a newline at the end
+  printf("\n");
+
+
+  // For this program we'll always accept the packet...
+  return nfq_set_verdict(myQueue, id, NF_ACCEPT, 0, NULL);
 }
 
 
 int main(int argc, char** argv) {
 
-  if(argc != 7){
     fprintf(stderr, "Usage: sudo ./nat <IP> <LAN> <MASK> <bucket size> <fill rate>\n");
     exit(1);
   }
@@ -70,6 +88,12 @@ int main(int argc, char** argv) {
   // Unbind the handler from processing any IP packets
   if (nfq_unbind_pf(nfqHandle, AF_INET) < 0) {
     fprintf(stderr, "Error in nfq_unbind_pf()\n");
+    exit(1);
+  }
+  
+  // Bind this handler to process IP packets...
+  if (nfq_bind_pf(nfqHandle, AF_INET) < 0) {
+    fprintf(stderr, "Error in nfq_bind_pf()\n");
     exit(1);
   }
 
