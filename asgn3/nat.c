@@ -36,6 +36,11 @@ typedef struct tokenbucket {
 pthread_mutex_t bucket_mutex;
 TokenBucket bucket;
 
+pthread_mutex_t packet_buffer_mutex;
+unsigned int packets_num_in_buffer = 0;
+
+pthread_t translation_thread;
+
 int add_token(unsigned int num) {
   pthread_mutex_lock(&bucket_mutex);
   if(bucket.tokens < bucket.size) {
@@ -86,18 +91,19 @@ void *token_bucket_thread_run(void *arg) {
   }
 }
 
-static int Callback(struct nfq_q_handle *myQueue, struct nfgenmsg *msg,
-                nfq_data* pkt, void *cbData) {
-  unsigned int id = 0;
+typedef struct trans_arg{
+  unsigned int id;
+  struct nfq_q_handle *myQueue;
+  nfq_data* pkt;
   nfqnl_msg_packet_hdr *header;
+} TransArg;
 
-  printf("pkt recvd: ");
-  if ((header = nfq_get_msg_packet_hdr(pkt))) {
-          id = ntohl(header->packet_id);
-          printf("  id: %u\n", id);
-          printf("  hw_protocol: %u\n", ntohs(header->hw_protocol));       
-          printf("  hook: %u\n", header->hook);
-  }
+void *translation_thread_run(void *arg) {
+  TransArg *param = (TransArg *)arg;
+  unsigned int id = param->id;
+  struct nfq_q_handle *myQueue = param->myQueue;
+  nfq_data* pkt = param->pkt;
+  nfqnl_msg_packet_hdr *header = param->header;
 
   unsigned char *pktData;
   int len = nfq_get_payload(pkt, (unsigned char**)&pktData);
@@ -112,13 +118,13 @@ static int Callback(struct nfq_q_handle *myQueue, struct nfgenmsg *msg,
   unsigned int local_mask = 0xffffffff << (32 - mask);
   unsigned int lan_int = ntohl(lan.s_addr);
   unsigned int local_network = local_mask & lan_int;  
-printf("%d \t %d\n",local_network,ntohl(iph->saddr));
+  printf("%d \t %d\n",local_network,ntohl(iph->saddr));
 
   if ((ntohl(iph->saddr) & local_mask) == local_network) {
-	printf("outbound\n");  
-	// outbound traffic
-	//modify source IP to the public IP of gateway
-	//allocate a port
+    printf("outbound\n");  
+    // outbound traffic
+    //modify source IP to the public IP of gateway
+    //allocate a port
   } else {
 	printf("inbound\n");
 	// inbound traffic
@@ -144,6 +150,45 @@ printf("%d \t %d\n",local_network,ntohl(iph->saddr));
   printf("\n");
 
   return nfq_set_verdict(myQueue, id, NF_ACCEPT, 0, NULL);
+}
+
+static int Callback(struct nfq_q_handle *myQueue, struct nfgenmsg *msg,
+                nfq_data* pkt, void *cbData) {
+  unsigned int id = 0;
+  nfqnl_msg_packet_hdr *header;
+
+  printf("pkt recvd: ");
+  if ((header = nfq_get_msg_packet_hdr(pkt))) {
+          id = ntohl(header->packet_id);
+          printf("  id: %u\n", id);
+          printf("  hw_protocol: %u\n", ntohs(header->hw_protocol));       
+          printf("  hook: %u\n", header->hook);
+  }
+
+  // check whether packet buffer have space left (buffer max = 10, to limit number of threads)
+  int success = 0;
+  pthread_mutex_lock(&packet_buffer_mutex);
+  if(packets_num_in_buffer < 10) {
+    packets_num_in_buffer += 1;
+    success = 1;
+  }
+  else {
+    printf("packet dropped due to limited buffer\n");
+  }
+  pthread_mutex_unlock(&packet_buffer_mutex);
+  if(success == 0) {
+    // drop this packet at router
+    return nfq_set_verdict(myQueue, id, NF_DROP, 0, NULL);
+  }
+
+  // packet will goto new thread and get translated then set_verdict accordingly
+  TransArg *arg = (TransArg *)malloc(sizeof(TransArg));
+  arg->header = header;
+  arg->id = id;
+  arg->myQueue = myQueue;
+  arg->pkt = pkt;
+  pthread_create(&translation_thread, NULL, translation_thread_run, arg);
+  return 0; // or required certain return?
 }
 
 int main(int argc, char** argv) {
@@ -208,14 +253,17 @@ int main(int argc, char** argv) {
 
   // setup bucket mutex
   if (pthread_mutex_init(&bucket_mutex, NULL) < 0) { 
-    printf("mutex init failed\n"); 
+    printf("bucket_mutex init failed\n"); 
     exit(-1);
   } 
 
+  if (pthread_mutex_init(&packet_buffer_mutex, NULL) < 0) { 
+    printf("packet_buffer_mutex init failed\n"); 
+    exit(-1);
+  } 
   // start filling bucket thread
   pthread_t bucket_thread;
   pthread_create(&bucket_thread, NULL, token_bucket_thread_run, NULL);
-  // pthread_join(bucket_thread, NULL);
   
   while ((res = recv(fd, buf, sizeof(buf), 0)) && res >= 0) {
     nfq_handle_packet(nfqHandle, buf, res);
