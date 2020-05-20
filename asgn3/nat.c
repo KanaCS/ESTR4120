@@ -8,7 +8,7 @@
 #include <sys/time.h> // required by gettimeofday()
 #include <time.h> // required by nanosleep()
 #include <errno.h> // required by errno
-# include <pthread.h>
+#include <pthread.h>
 #include <netinet/ip.h>        // required by "struct iph"
 #include <netinet/tcp.h>    // required by "struct tcph"
 #include <netinet/udp.h>    // required by "struct udph"
@@ -26,6 +26,65 @@ extern "C" {
 struct in_addr ip;
 struct in_addr lan;
 int mask=0;
+
+typedef struct tokenbucket {
+  unsigned int size;
+  unsigned int tokens;
+  unsigned int rate;
+} TokenBucket;
+
+pthread_mutex_t bucket_mutex;
+TokenBucket bucket;
+
+int add_token(unsigned int num) {
+  pthread_mutex_lock(&bucket_mutex);
+  if(bucket.tokens < bucket.size) {
+    bucket.tokens += num;
+  }
+  pthread_mutex_unlock(&bucket_mutex);
+  return 1;
+}
+
+int get_token() { // return when get 1 token successfully
+  struct timespec tim1, tim2;
+  double fill_time_second = 1.0 / bucket.rate;
+  fill_time_second = fill_time_second/2;
+  tim1.tv_sec = (int)fill_time_second;
+  fill_time_second -= (int)fill_time_second;
+  tim1.tv_nsec = (long)(fill_time_second * 1E9);
+
+  int result = 0;
+  while(result == 0) {
+    pthread_mutex_lock(&bucket_mutex);
+    if(bucket.tokens > 0) {
+      bucket.tokens -= 1;
+      result = 1;
+    }
+    pthread_mutex_unlock(&bucket_mutex);
+    if(result == 0) {
+      if(nanosleep(&tim1, &tim2) < 0) {
+        printf("ERROR: nanosleep() system call failed in get_token()!\n");
+        exit(1);
+      }
+    }
+  }
+  return result;
+}
+
+void *token_bucket_thread_run(void *arg) {
+  struct timespec tim1, tim2;
+  double fill_time_second = 1.0 / bucket.rate;
+  tim1.tv_sec = (int)fill_time_second;
+  fill_time_second -= (int)fill_time_second;
+  tim1.tv_nsec = (long)(fill_time_second * 1E9);
+  // printf("nanotime = %ld\n", tim1.tv_nsec);
+  while(add_token(1)) {
+    if(nanosleep(&tim1, &tim2) < 0) {
+      printf("ERROR: nanosleep() system call failed in token_bucket_thread_run()!\n");
+      exit(1);
+    }
+  }
+}
 
 static int Callback(struct nfq_q_handle *myQueue, struct nfgenmsg *msg,
                 nfq_data* pkt, void *cbData) {
@@ -87,7 +146,6 @@ printf("%d \t %d\n",local_network,ntohl(iph->saddr));
   return nfq_set_verdict(myQueue, id, NF_ACCEPT, 0, NULL);
 }
 
-
 int main(int argc, char** argv) {
 
   if(argc != 6){
@@ -143,11 +201,27 @@ int main(int argc, char** argv) {
   int res;
   char buf[BUF_SIZE];
 
+  // setup token bucket
+  bucket.size = bsize;
+  bucket.rate = rate;
+  bucket.tokens = bsize;
+
+  // setup bucket mutex
+  if (pthread_mutex_init(&bucket_mutex, NULL) < 0) { 
+    printf("mutex init failed\n"); 
+    exit(-1);
+  } 
+
+  // start filling bucket thread
+  pthread_t bucket_thread;
+  pthread_create(&bucket_thread, NULL, token_bucket_thread_run, NULL);
+  // pthread_join(bucket_thread, NULL);
+  
   while ((res = recv(fd, buf, sizeof(buf), 0)) && res >= 0) {
     nfq_handle_packet(nfqHandle, buf, res);
   }
 
   nfq_destroy_queue(nfQueue);
   nfq_close(nfqHandle);
-
+  pthread_mutex_destroy(&bucket_mutex); 
 }
