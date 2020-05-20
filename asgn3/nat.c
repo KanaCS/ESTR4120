@@ -27,6 +27,7 @@ struct in_addr ip;
 struct in_addr lan;
 int mask=0;
 NAT_TB* nat_table = NULL;
+int assign_port = 10000;
 
 pthread_mutex_t bucket_mutex;
 TokenBucket bucket;
@@ -87,15 +88,36 @@ void *token_bucket_thread_run(void *arg) {
 }
 
 int search_dst_port(int dst_port, struct in_addr* targetip, int* targetport ){
-  while(nat_table!=NULL){
-    if(nat_table->trans_port == dst_port) {
-      *targetip = nat_table->itn_ip;
-      *targetport = nat_table->itn_port;
+  NAT_TB* table = nat_table;
+  while(table!=NULL){
+    if(table->trans_port == dst_port) {
+      *targetip = table->itn_ip;
+      *targetport = table->itn_port;
       return 1;
     }
-    nat_table = nat_table->next;
+    table = table->next;
   }
   return -1;
+}
+
+int search_entry(struct in_addr ip, int port, struct timeval tv){
+  NAT_TB* table = nat_table;
+  while(table!=NULL){
+    if(table->itn_port == port && table->itn_ip->s_addr == ip->s_addr) {
+      return table->trans_port;
+    }
+    else if(table->next==NULL){
+      table->next = (NAT_TB*)malloc(sizeof(NAT_TB));
+      table = table->next;
+      table->itn_ip = ip;
+      table->itn_port = port;
+      table->trans_port = assign_port;
+      assign_port ++;
+      table->accesstv = tv;
+      return table->trans_port;
+    }
+    table = table->next;
+  }
 }
 
 typedef struct trans_arg{
@@ -129,10 +151,20 @@ void *translation_thread_run(void *arg) {
 
   if ((ntohl(iph->saddr) & local_mask) == local_network) {
     printf("outbound\n");  
-    // outbound traffic
-    //modify source IP to the public IP of gateway
-    //allocate a port
-  } else {
+    struct timeval tv;
+    if (!nfq_get_timestamp(pkt, &tv)) {
+            printf("  timestamp: %lu.%lu\n", tv.tv_sec, tv.tv_usec);
+    } else {
+            printf("  timestamp: nil\n");
+    }
+    int targetport = search_entry((struct in_addr)iph->saddr, udph->uh_sport, tv);
+    //BUG: cant type cast
+    udph->uh_sport = htons(targetport);
+    memcpy(&(iph->saddr),&ip,sizeof(ip));
+    iph->check = ip_checksum(pktData);
+    udph->check = udp_checksum(pktData);
+  } 
+  else {
     printf("inbound\n");
     int dst_port = udph->uh_dport;
     struct in_addr targetip;
@@ -146,27 +178,8 @@ void *translation_thread_run(void *arg) {
 
     iph->check = ip_checksum(pktData);
     udph->check = udp_checksum(pktData);
+  }
 
-	// inbound traffic
-	//convert the (DestIP, port) to the original (IP, port)
-  }
-/*
-  // print the timestamp (PC: seems the timestamp is not always set)
-  struct timeval tv;
-  if (!nfq_get_timestamp(pkt, &tv)) {
-          printf("  timestamp: %lu.%lu\n", tv.tv_sec, tv.tv_usec);
-  } else {
-          printf("  timestamp: nil\n");
-  }
-*/
-  // Print the payload; in copy meta mode, only headers will be
-  // included; in copy packet mode, whole packet will be returned.
-  printf(" payload: ");
-  if (len > 0) {
-          for (int i=0; i<len; ++i) {
-                  printf("%02x ", pktData[i]);
-          }
-  }
   printf("\n");
 
   return nfq_set_verdict(myQueue, id, NF_ACCEPT, 0, NULL);
