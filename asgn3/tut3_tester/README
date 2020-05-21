@@ -1,0 +1,8 @@
+Readme
+======
+
+## server.c & client.c:
+    
+- A UDP socket programming example.
+
+- The client sends server a heartbeat message every three seconds and the server sends back a response after receiving the heartbeat.  
