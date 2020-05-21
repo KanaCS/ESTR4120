@@ -18,7 +18,7 @@ sudo iptables -L
 
 **testing:** 
 
-vmb, vmc: sudo route add default 10.0.36.1 //always check using "route", this guy will disappear autoly
+vmb, vmc: sudo route add default gw 10.0.36.1 //always check using "route", this guy will disappear autoly
 
 sudo ./nat 10.3.1.36 10.0.36.0 24 100 1 //vma
 
