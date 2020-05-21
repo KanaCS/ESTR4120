@@ -28,6 +28,10 @@ echo "AAAA" | nc -uv 137.189.88.153 10100 //vmb or vmc
 
  base64 /dev/urandom | head -c \[size_in_byte\] > file.txt
  
+ **check if any running nat process:**
+
+ ps aux | grep -i nat
+ 
 # TO DO
 - [X] Translation expiry requiremen
 - [X] Inbound & Outbound
