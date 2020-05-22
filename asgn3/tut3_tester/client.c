@@ -47,6 +47,7 @@ int main(int argc, char **argv) {
   send_time -= (int)(send_time);
   tim1.tv_nsec = (long)(send_time * 1E9);
 
+  char ip_str[INET_ADDRSTRLEN];
   for (counter = 0; counter < UINT_MAX; counter++) {
     sprintf(buff, "%u", counter);
     int len;
@@ -69,7 +70,8 @@ int main(int argc, char **argv) {
         prev_tv->tv_sec = tv->tv_sec;
         prev_tv->tv_usec = tv->tv_usec;
         gettimeofday(tv, NULL);
-        printf("recved response from server: %s, diff time: %.6lf s\n", recvBuff, (tv->tv_sec - prev_tv->tv_sec) + (tv->tv_usec - prev_tv->tv_usec)/ 1.0E6 );
+        inet_ntop(AF_INET, &(client_addr.sin_addr), ip_str, INET_ADDRSTRLEN);
+        printf("recved response from server (%s, %d): %s, diff time: %.6lf s\n", ip_str, ntohs(client_addr.sin_port), recvBuff, (tv->tv_sec - prev_tv->tv_sec) + (tv->tv_usec - prev_tv->tv_usec)/ 1.0E6 );
       }
       else {
         if(counter == 0) {
@@ -80,7 +82,8 @@ int main(int argc, char **argv) {
           prev_tv->tv_usec = tv->tv_usec;
           gettimeofday(tv, NULL);
         }
-        printf("recved response from server: %s\n", recvBuff);
+        inet_ntop(AF_INET, &(client_addr.sin_addr), ip_str, INET_ADDRSTRLEN);
+        printf("recved response from server (%s, %d): %s\n", ip_str, ntohs(client_addr.sin_port), recvBuff);
       }
     }
     if(nanosleep(&tim1, &tim2) < 0) {
