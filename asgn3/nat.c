@@ -76,10 +76,14 @@ void printNAT(){
   NAT_TB* table = nat_table;
   printf("------------------------------------------NAT TABLE----------------------------------------------\n");
   while(table!=NULL){
-    printf("src_ip:%s\t",inet_ntoa(table->itn_ip)); 
-    printf("src_p:%hu\t",table->itn_port);
-    printf("trans_ip:%s\t", inet_ntoa(table->trans_ip));
-    printf("trans_p:%hu\t", table->trans_port);
+    struct in_addr tmp = table->itn_ip;
+    tmp.s_addr = htonl(tmp.s_addr);
+    printf("src_ip:%s\t",inet_ntoa(tmp)); 
+    printf("src_p:%u\t",table->itn_port);
+    struct in_addr tmpt = table->trans_ip;
+    tmpt.s_addr = htonl(tmpt.s_addr);
+    printf("trans_ip:%s\t", inet_ntoa(tmpt));
+    printf("trans_p:%u\t", table->trans_port);
     printf("timestamp: %lu.%lu\n", table->accesstv.tv_sec, table->accesstv.tv_usec);
     table = table->next;
   }
@@ -137,7 +141,7 @@ void *token_bucket_thread_run(void *arg) {
   }
 }
 
-int search_dst_port(u_short dst_port, struct in_addr* targetip, u_short* targetport, struct timeval tv ){
+u_short search_dst_port(u_short dst_port, struct in_addr* targetip, u_short* targetport, struct timeval tv ){
   NAT_TB* table = nat_table;
   while(table!=NULL){
     if(table->trans_port == dst_port) {
@@ -151,7 +155,7 @@ int search_dst_port(u_short dst_port, struct in_addr* targetip, u_short* targetp
   return -1;
 }
 
-int search_entry(struct in_addr ip, u_short port, struct timeval tv){ 
+unsigned int search_entry(struct in_addr ip, u_short port, struct timeval tv){ 
   printf("in search_entry arrrr\n");
   NAT_TB* table = nat_table;
 
@@ -163,12 +167,15 @@ int search_entry(struct in_addr ip, u_short port, struct timeval tv){
       nat_table->itn_port = port;
       nat_table->trans_ip = natip;
       nat_table->next = NULL;
-      u_short i = 0;
+      int i = 0;
       for(i=0;i<2000;i++){
 	if(porttb[i]=='n'){
 	  porttb[i]='y';
 	  break;
 	}
+      }
+      if (i>=2000){
+	printf("no port available\n"); exit(-1);
       }
       nat_table->trans_port = i+10000;
       nat_table->accesstv = tv;
@@ -188,12 +195,15 @@ int search_entry(struct in_addr ip, u_short port, struct timeval tv){
       table->itn_ip = ip;
       table->itn_port = port;
       table->trans_ip = natip;
-      u_short i = 0;
+      int i = 0;
       for(i=0;i<2000;i++){
         if(porttb[i]=='n'){
           porttb[i]='y';
           break;
         }
+      }
+      if (i>=2000){
+        printf("no port available\n"); exit(-1);
       }
       table->trans_port = i+10000;
       table->accesstv = tv;
@@ -247,8 +257,7 @@ static int Callback(struct nfq_q_handle *myQueue, struct nfgenmsg *msg,
   }
 
   unsigned char *pktData;
-  //int len = 
-  nfq_get_payload(pkt, (unsigned char**)&pktData);
+  int len = nfq_get_payload(pkt, (unsigned char**)&pktData);
   struct iphdr *iph = (struct iphdr *)pktData;
   struct udphdr *udph =(struct udphdr *) (((char*)iph) + iph->ihl*4);
   //unsigned char* appData = pktData + iph->ihl * 4 + 8;
@@ -263,7 +272,7 @@ static int Callback(struct nfq_q_handle *myQueue, struct nfgenmsg *msg,
     return nfq_set_verdict(myQueue, id, NF_DROP, 0, NULL);
   }
   unsigned int local_mask = 0xffffffff << (32 - mask);
-  unsigned int lan_int = ntohl(natlan.s_addr);
+  unsigned int lan_int = natlan.s_addr;
   unsigned int local_network = local_mask & lan_int;  
   struct timeval tv;
   if (!nfq_get_timestamp(pkt, &tv)) {
@@ -280,8 +289,8 @@ static int Callback(struct nfq_q_handle *myQueue, struct nfgenmsg *msg,
     printf("outbound\n");  
     struct in_addr ipadr;
     ipadr.s_addr = ntohl(iph->saddr);
-    u_short targetport = (u_short) search_entry(ipadr, ntohl(udph->uh_sport), tv);
-    udph->uh_sport = htonl(targetport);
+    u_short targetport = search_entry(ipadr, ntohs(udph->source), tv);
+    udph->source = htons(targetport);
     iph->saddr = htonl(natip.s_addr);
     udph->check = udp_checksum(pktData);
     iph->check = ip_checksum(pktData);
@@ -289,7 +298,7 @@ static int Callback(struct nfq_q_handle *myQueue, struct nfgenmsg *msg,
    } 
   else {
     printf("inbound\n");
-    u_short dst_port = ntohl(udph->uh_dport);
+    u_short dst_port = ntohs(udph->dest);
     struct in_addr targetip;
     u_short targetport;
     if(search_dst_port(dst_port, &targetip, &targetport, tv)==-1){
@@ -298,7 +307,7 @@ static int Callback(struct nfq_q_handle *myQueue, struct nfgenmsg *msg,
       return nfq_set_verdict(myQueue, id, NF_DROP, 0, NULL);
     }
     iph->daddr = htonl(targetip.s_addr);
-    udph->uh_dport = htons(targetport);
+    udph->dest = htons(targetport);
     udph->check = udp_checksum(pktData);
     iph->check = ip_checksum(pktData);
     printNAT();
@@ -307,7 +316,7 @@ static int Callback(struct nfq_q_handle *myQueue, struct nfgenmsg *msg,
   printf("\n");
   get_token(); // wait for token
   rm_pkt_buf(); // reduce pkt_in_buf by 1
-  return nfq_set_verdict(myQueue, id, NF_ACCEPT, 0, NULL);
+  return nfq_set_verdict(myQueue, id, NF_ACCEPT, len, pktData);
 }
 
 int main(int argc, char** argv) {
@@ -320,11 +329,14 @@ int main(int argc, char** argv) {
   strcpy(ip_s,argv[1]);
   strcpy(lan_s,argv[2]);
   inet_aton(ip_s, &natip);
+  natip.s_addr = ntohl(natip.s_addr);
   inet_aton(lan_s, &natlan);
+  natlan.s_addr = ntohl(natlan.s_addr);
+
   mask = atoi(argv[3]);
   int bsize = atoi(argv[4]);
   int rate = atoi(argv[5]);
-  
+printf("############# initial : %lu\n",natip.s_addr); 
   //init porttb
   int i = 0;   
   for(i = 0; i<2000;i++){

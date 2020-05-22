@@ -16,9 +16,9 @@
 
 struct nat_tb{
 	struct in_addr itn_ip;
-	u_short itn_port;
+	unsigned int itn_port;
 	struct in_addr trans_ip;
-	u_short trans_port;
+	unsigned int trans_port;
 	struct timeval accesstv;
 	struct nat_tb* next;
 } typedef NAT_TB;
