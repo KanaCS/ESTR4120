@@ -279,17 +279,17 @@ static int Callback(struct nfq_q_handle *myQueue, struct nfgenmsg *msg,
   if ((ntohl(iph->saddr) & local_mask) == local_network){
     printf("outbound\n");  
     struct in_addr ipadr;
-    ipadr.s_addr = iph->saddr;
-    u_short targetport = (u_short) search_entry(ipadr, udph->uh_sport, tv);
-    memcpy(&(udph->uh_sport),&targetport,sizeof(targetport));
-    memcpy(&(iph->saddr),&natip,sizeof(natip));
-    iph->check = ip_checksum(pktData);
+    ipadr.s_addr = ntohl(iph->saddr);
+    u_short targetport = (u_short) search_entry(ipadr, ntohl(udph->uh_sport), tv);
+    udph->uh_sport = htonl(targetport);
+    iph->saddr = htonl(natip.s_addr);
     udph->check = udp_checksum(pktData);
+    iph->check = ip_checksum(pktData);
     printNAT();
    } 
   else {
     printf("inbound\n");
-    u_short dst_port = udph->uh_dport;
+    u_short dst_port = ntohl(udph->uh_dport);
     struct in_addr targetip;
     u_short targetport;
     if(search_dst_port(dst_port, &targetip, &targetport, tv)==-1){
@@ -297,11 +297,10 @@ static int Callback(struct nfq_q_handle *myQueue, struct nfgenmsg *msg,
       rm_pkt_buf();
       return nfq_set_verdict(myQueue, id, NF_DROP, 0, NULL);
     }
-    memcpy(&(iph->daddr),&targetip,sizeof(targetip));
+    iph->daddr = htonl(targetip.s_addr);
     udph->uh_dport = htons(targetport);
-
-    iph->check = ip_checksum(pktData);
     udph->check = udp_checksum(pktData);
+    iph->check = ip_checksum(pktData);
     printNAT();
   }
 
