@@ -51,22 +51,22 @@ void remove_expiry(){
       printf("true? %d\n",table->next==NULL);
       NAT_TB* befree = NULL;
       if(prev == NULL){
-	nat_table = table->next;
-	befree = table;
-	table = nat_table;
+      	nat_table = table->next;
+      	befree = table;
+      	table = nat_table;
       }else{
         prev->next = table->next;
-	befree = table;
-	table = prev->next;
+      	befree = table;
+      	table = prev->next;
       }
-      if(table!=NULL){
-	porttb[befree->trans_port-10000] = 'n';
+      if(befree!=NULL){
+	      porttb[befree->trans_port-10000] = 'n';
         free(befree);
       }
     }
     else{
     	prev = table;
-	table = table->next;
+	    table = table->next;
     }
   }
 printf("finish remove\n");
@@ -77,9 +77,9 @@ void printNAT(){
   printf("------------------------------------------NAT TABLE----------------------------------------------\n");
   while(table!=NULL){
     printf("src_ip:%s\t",inet_ntoa(table->itn_ip)); 
-    printf("src_p:%d\t",table->itn_port);
+    printf("src_p:%hu\t",table->itn_port);
     printf("trans_ip:%s\t", inet_ntoa(table->trans_ip));
-    printf("trans_p:%d\t", table->trans_port);
+    printf("trans_p:%hu\t", table->trans_port);
     printf("timestamp: %lu.%lu\n", table->accesstv.tv_sec, table->accesstv.tv_usec);
     table = table->next;
   }
@@ -137,7 +137,7 @@ void *token_bucket_thread_run(void *arg) {
   }
 }
 
-int search_dst_port(int dst_port, struct in_addr* targetip, int* targetport, struct timeval tv ){
+int search_dst_port(u_short dst_port, struct in_addr* targetip, u_short* targetport, struct timeval tv ){
   NAT_TB* table = nat_table;
   while(table!=NULL){
     if(table->trans_port == dst_port) {
@@ -151,7 +151,7 @@ int search_dst_port(int dst_port, struct in_addr* targetip, int* targetport, str
   return -1;
 }
 
-int search_entry(struct in_addr ip, int port, struct timeval tv){ 
+int search_entry(struct in_addr ip, u_short port, struct timeval tv){ 
   printf("in search_entry arrrr\n");
   NAT_TB* table = nat_table;
 
@@ -163,7 +163,7 @@ int search_entry(struct in_addr ip, int port, struct timeval tv){
       nat_table->itn_port = port;
       nat_table->trans_ip = natip;
       nat_table->next = NULL;
-      int i = 0;
+      u_short i = 0;
       for(i=0;i<2000;i++){
 	if(porttb[i]=='n'){
 	  porttb[i]='y';
@@ -188,7 +188,7 @@ int search_entry(struct in_addr ip, int port, struct timeval tv){
       table->itn_ip = ip;
       table->itn_port = port;
       table->trans_ip = natip;
-      int i = 0;
+      u_short i = 0;
       for(i=0;i<2000;i++){
         if(porttb[i]=='n'){
           porttb[i]='y';
@@ -289,9 +289,9 @@ static int Callback(struct nfq_q_handle *myQueue, struct nfgenmsg *msg,
    } 
   else {
     printf("inbound\n");
-    int dst_port = udph->uh_dport;
+    u_short dst_port = udph->uh_dport;
     struct in_addr targetip;
-    int targetport;
+    u_short targetport;
     if(search_dst_port(dst_port, &targetip, &targetport, tv)==-1){
       printf("dst_port not in table, drop the pkt\n");
       rm_pkt_buf();

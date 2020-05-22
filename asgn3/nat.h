@@ -16,9 +16,9 @@
 
 struct nat_tb{
 	struct in_addr itn_ip;
-	int itn_port;
+	u_short itn_port;
 	struct in_addr trans_ip;
-	int trans_port;
+	u_short trans_port;
 	struct timeval accesstv;
 	struct nat_tb* next;
 } typedef NAT_TB;
@@ -28,19 +28,3 @@ typedef struct tokenbucket {
   unsigned int tokens;
   unsigned int rate;
 } TokenBucket;
-
-void print_nat_tb(NAT_TB *tb) {
-	print("\n");
-	printf("|\t%-15s\t|\t%-12s\t|\t%-15s\t|\t%-16s\t|\t%-13s\t|\n", "Source IP", "Source Port", "Translated IP", "Translated Port", "Time To Live")
-	while(tb != NULL) {
-		print_nat_tb_i(tb);
-		tb = tb->next;
-	}
-}
-void print_nat_tb_i(NAT_TB *tb) {
-	char itn_ip_str[INET_ADDRSTRLEN];
-	char trans_ip_str[INET_ADDRSTRLEN];
-	inet_ntop(AF_INET, &(tb->itn_ip.s_addr), itn_ip_str, INET_ADDRSTRLEN);
-	inet_ntop(AF_INET, &(tb->trans_ip.s_addr), trans_ip_str, INET_ADDRSTRLEN);
-	printf("|\t%-15s\t|\t%-12d\t|\t%-15s\t|\t%-16d\t|\t%-13.3lf\t|\n", itn_ip_str, tb->itn_port, trans_ip_str, tb->trans_ip, (double)(tb->accesstv.tv_sec) + (double)(tb->accesstv.tv_usec) / 10E6);
-}
