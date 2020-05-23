@@ -30,14 +30,13 @@ int main(int argc, char **argv) {
   }
   struct sockaddr_in client_addr;
   unsigned int counter;
-  char ackBuff[16];
+  char ackBuff[20];
   char ip_str[INET_ADDRSTRLEN];
   struct timeval *tv = malloc(sizeof(struct timeval));
   struct timeval *prev_tv = malloc(sizeof(struct timeval));
   for (counter = 0; counter < UINT_MAX; counter++) {
     char buff[100];
     int len;
-    sprintf(ackBuff, "ack%d", counter);
     // printf("Waiting heartbeat\n");
     if ((len = recvfrom(sd, buff, sizeof(buff), 0,
                         (struct sockaddr *)&client_addr, &addrLen)) <= 0) {
@@ -67,6 +66,7 @@ int main(int argc, char **argv) {
         printf("recv from (%s, %d): %s\n", ip_str, ntohs(client_addr.sin_port), buff);
       }
     }
+    sprintf(ackBuff, "ack-%s", buff);
     if ((len = sendto(sd, ackBuff, strlen(ackBuff), 0,
                       (struct sockaddr *)&client_addr, addrLen)) <= 0) {
       printf("Send Error: %s (Errno:%d)\n", strerror(errno), errno);
