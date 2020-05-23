@@ -69,7 +69,7 @@ void remove_expiry(){
 	    table = table->next;
     }
   }
-printf("finish remove\n");
+// printf("finish remove\n");
 }
 
 void printNAT(){
@@ -91,55 +91,115 @@ void printNAT(){
 }
 
 
-int add_token(unsigned int num) {
-  pthread_mutex_lock(&bucket_mutex);
-  if(bucket.tokens < bucket.size) {
-    bucket.tokens += num;
-  }
-  pthread_mutex_unlock(&bucket_mutex);
-  return 1;
+// int add_token(unsigned int num) {
+//   pthread_mutex_lock(&bucket_mutex);
+//   if(bucket.tokens < bucket.size) {
+//     bucket.tokens += num;
+//   }
+//   pthread_mutex_unlock(&bucket_mutex);
+//   return 1;
+// }
+
+double time_diff(struct timeval tv1, struct timeval tv2) {
+  double t1 = tv1.tv_sec + tv1.tv_usec / 1.0E6;
+  double t2 = tv2.tv_sec + tv2.tv_usec / 1.0E6;
+  return t1-t2;
 }
 
-int get_token() { // return when get 1 token successfully
-  struct timespec tim1, tim2;
-  double fill_time_second = 1.0 / bucket.rate;
-  fill_time_second = fill_time_second/2;
-  tim1.tv_sec = (int)fill_time_second;
-  fill_time_second -= (int)fill_time_second;
-  tim1.tv_nsec = (long)(fill_time_second * 1E9);
+void forward_seconds(struct timeval *tv, double s) {
+  int sec = (int)s;
+  unsigned int usec = (s-sec) * 1E6;
+  tv->tv_sec += sec;
+  if(tv->tv_usec + usec > 1E6) {
+    tv->tv_sec += 1;
+    tv->tv_usec = tv->tv_usec + usec - 1E6;
+  }
+  else {
+    tv->tv_usec += usec;
+  }
+}
 
-  int result = 0;
-  while(result == 0) {
-    pthread_mutex_lock(&bucket_mutex);
-    if(bucket.tokens > 0) {
-      bucket.tokens -= 1;
-      result = 1;
+void lazy_refill(struct timeval curr_tv, double fill_time) {
+  double time_from_base = time_diff(curr_tv, bucket.fill_base_tv);
+  int fill_tokens = time_from_base / fill_time;
+  if(bucket.tokens + fill_tokens >= 10) {
+    // bucket already full, taking one away and set start filling
+    bucket.tokens = 10;
+    gettimeofday(&bucket.fill_base_tv, NULL);
+  }
+  else {
+    // bucket not yet full, update fill base
+    bucket.tokens += fill_tokens;
+    forward_seconds(&bucket.fill_base_tv, fill_time * fill_tokens);
+  }
+}
+
+void get_token() { // return when get 1 token successfully
+  struct timespec tim1, tim2;
+  double fill_time = 1.0 / bucket.rate;
+  int fill_time_sec = (int)fill_time;
+  unsigned int fill_time_nsec = (fill_time - fill_time_sec) * 1E9;
+
+  struct timeval curr_tv;
+  pthread_mutex_lock(&bucket_mutex);
+  printf("%d tokens in bucket\n", bucket.tokens);
+  if(bucket.tokens > 0) {
+    // have token
+    if(bucket.tokens < 10) {
+      // lazy refill here
+      gettimeofday(&curr_tv, NULL);
+      lazy_refill(curr_tv, fill_time);
     }
-    pthread_mutex_unlock(&bucket_mutex);
-    if(result == 0) {
+    else {
+      // bucket start filling, only reached by the 1st pkt
+      printf("first pkt setup fill base\n");
+      gettimeofday(&bucket.fill_base_tv, NULL);
+    }
+    bucket.tokens -= 1;
+  }
+  else {
+    // no tokens
+    struct timeval next_token_tv;
+    next_token_tv = bucket.fill_base_tv;
+    forward_seconds(&next_token_tv, fill_time);
+    // printf("%ld.%ld -> %ld.%ld\n", bucket.fill_base_tv.tv_sec, bucket.fill_base_tv.tv_usec, next_token_tv.tv_sec, next_token_tv.tv_usec);
+    double td;
+    gettimeofday(&curr_tv, NULL);
+    if((td=time_diff(next_token_tv, curr_tv)) > 0.0) {
+      // need to wait for the next token
+      tim1.tv_sec = (int)td;
+      tim1.tv_nsec = (td-tim1.tv_sec) * 1E9;
+      forward_seconds(&bucket.fill_base_tv, fill_time);
+      printf("curr: %ld.%ld, next token avaliable at %ld.%ld\n", curr_tv.tv_sec, curr_tv.tv_usec, next_token_tv.tv_sec, next_token_tv.tv_usec);
+      printf("this pkt will wait %.6lf s for a token\n", td);
       if(nanosleep(&tim1, &tim2) < 0) {
         printf("ERROR: nanosleep() system call failed in get_token()!\n");
         exit(1);
       }
     }
-  }
-  return result;
-}
-
-void *token_bucket_thread_run(void *arg) {
-  struct timespec tim1, tim2;
-  double fill_time_second = 1.0 / bucket.rate;
-  tim1.tv_sec = (int)fill_time_second;
-  fill_time_second -= (int)fill_time_second;
-  tim1.tv_nsec = (long)(fill_time_second * 1E9);
-  // printf("nanotime = %ld\n", tim1.tv_nsec);
-  while(add_token(1)) {
-    if(nanosleep(&tim1, &tim2) < 0) {
-      printf("ERROR: nanosleep() system call failed in token_bucket_thread_run()!\n");
-      exit(1);
+    else {
+      // already have token in bucket, lazy refill here
+      lazy_refill(curr_tv, fill_time);
+      bucket.tokens -= 1;
     }
   }
+  pthread_mutex_unlock(&bucket_mutex);
 }
+
+// void *token_bucket_thread_run(void *arg) {
+//   struct timespec tim1, tim2;
+//   double fill_time_second = 1.0 / bucket.rate;
+//   tim1.tv_sec = (int)fill_time_second;
+//   fill_time_second -= (int)fill_time_second;
+//   tim1.tv_nsec = (long)(fill_time_second * 1E9);
+//   // printf("nanotime = %ld\n", tim1.tv_nsec);
+//   while(add_token(1)) {
+//     if(nanosleep(&tim1, &tim2) < 0) {
+//       printf("ERROR: nanosleep() system call failed in token_bucket_thread_run()!\n");
+//       exit(1);
+//     }
+//   }
+// }
 
 u_short search_dst_port(u_short dst_port, struct in_addr* targetip, u_short* targetport, struct timeval tv ){
   NAT_TB* table = nat_table;
@@ -156,12 +216,12 @@ u_short search_dst_port(u_short dst_port, struct in_addr* targetip, u_short* tar
 }
 
 unsigned int search_entry(struct in_addr ip, u_short port, struct timeval tv){ 
-  printf("in search_entry arrrr\n");
+  // printf("in search_entry arrrr\n");
   NAT_TB* table = nat_table;
 
   //initial null case
   if(nat_table == NULL){
-      printf("initial the table arrrrr\n");
+      // printf("initial the table arrrrr\n");
       nat_table = (NAT_TB*)malloc(sizeof(NAT_TB));
       nat_table->itn_ip = ip;
       nat_table->itn_port = port;
@@ -231,7 +291,7 @@ int add_pkt_buf() {
   pthread_mutex_lock(&buf_mutex);
   if(pkt_in_buf < MAX_PKT_IN_BUF) {
     pkt_in_buf += 1;
-    res = 1;
+    res = pkt_in_buf;
   }
   pthread_mutex_unlock(&buf_mutex);
   return res;
@@ -248,12 +308,12 @@ static int Callback(struct nfq_q_handle *myQueue, struct nfgenmsg *msg,
                 nfq_data* pkt, void *cbData) {
   unsigned int id = 0;
   nfqnl_msg_packet_hdr *header;
-  printf("pkt recvd: ");
+  printf("\npkt recvd: ");
   if ((header = nfq_get_msg_packet_hdr(pkt))) {
           id = ntohl(header->packet_id);
           printf("  id: %u\n", id);
-          printf("  hw_protocol: %u\n", ntohs(header->hw_protocol));       
-          printf("  hook: %u\n", header->hook);
+          // printf("  hw_protocol: %u\n", ntohs(header->hw_protocol));       
+          // printf("  hook: %u\n", header->hook);
   }
 
   unsigned char *pktData;
@@ -266,20 +326,23 @@ static int Callback(struct nfq_q_handle *myQueue, struct nfgenmsg *msg,
       printf("drop pkt other than udp\n");
       return nfq_set_verdict(myQueue, id, NF_DROP, 0, NULL);
   }
-
-  if (add_pkt_buf() == 0) {
-    printf("drop pkt because pkt_in_buf > 10\n");
+  int pkt_buf_cnt;
+  if ((pkt_buf_cnt = add_pkt_buf()) == 0) {
+    printf("!!!! drop pkt because pkt_in_buf > 10 !!!!\n");
     return nfq_set_verdict(myQueue, id, NF_DROP, 0, NULL);
+  }
+  else {
+    printf("pkt_buf_cnt: %d\n", pkt_buf_cnt);
   }
   unsigned int local_mask = 0xffffffff << (32 - mask);
   unsigned int lan_int = natlan.s_addr;
   unsigned int local_network = local_mask & lan_int;  
   struct timeval tv;
   if (!nfq_get_timestamp(pkt, &tv)) {
-    printf("  timestamp: %lu.%lu\n", tv.tv_sec, tv.tv_usec);   
+    // printf("  timestamp: %lu.%lu\n", tv.tv_sec, tv.tv_usec);   
   } else {
     gettimeofday(&tv, NULL);
-    printf("  nil timestamp: %lu.%lu\n", tv.tv_sec, tv.tv_usec);
+    // printf("  nil timestamp: %lu.%lu\n", tv.tv_sec, tv.tv_usec);
   }
 
   //lazy approach to remove expired entries
@@ -294,7 +357,7 @@ static int Callback(struct nfq_q_handle *myQueue, struct nfgenmsg *msg,
     iph->saddr = htonl(natip.s_addr);
     udph->check = udp_checksum(pktData);
     iph->check = ip_checksum(pktData);
-    printNAT();
+    // printNAT();
    } 
   else {
     printf("inbound\n");
@@ -310,10 +373,10 @@ static int Callback(struct nfq_q_handle *myQueue, struct nfgenmsg *msg,
     udph->dest = htons(targetport);
     udph->check = udp_checksum(pktData);
     iph->check = ip_checksum(pktData);
-    printNAT();
+    // printNAT();
   }
 
-  printf("\n");
+  // printf("\n");
   get_token(); // wait for token
   rm_pkt_buf(); // reduce pkt_in_buf by 1
   return nfq_set_verdict(myQueue, id, NF_ACCEPT, len, pktData);
@@ -386,14 +449,14 @@ printf("############# initial : %lu\n",natip.s_addr);
   bucket.size = bsize;
   bucket.rate = rate;
   bucket.tokens = bsize;
-
+  gettimeofday(&bucket.fill_base_tv, NULL);
   // setup bucket mutex
   if (pthread_mutex_init(&bucket_mutex, NULL) < 0) { printf("bucket_mutex init failed\n"); exit(-1);} 
   if (pthread_mutex_init(&buf_mutex, NULL) < 0) {  printf("buf_mutex init failed\n"); exit(-1);} 
 
   // start filling bucket thread
-  pthread_t bucket_thread;
-  pthread_create(&bucket_thread, NULL, token_bucket_thread_run, NULL);
+  // pthread_t bucket_thread;
+  // pthread_create(&bucket_thread, NULL, token_bucket_thread_run, NULL);
   
   while ((res = recv(fd, buf, sizeof(buf), 0)) && res >= 0) {
     RecvThreadArg *args = (RecvThreadArg *)malloc(sizeof(RecvThreadArg));

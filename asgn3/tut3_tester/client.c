@@ -79,7 +79,7 @@ void *recver_thread_run(void *args) {
       pkt_num = atoi(recvBuff + 4);
       gettimeofday(&curr_tv, NULL);
       inet_ntop(AF_INET, &(client_addr.sin_addr), ip_str, INET_ADDRSTRLEN);
-      printf("recved response from server (%s, %d): %s, rtt: %.6lf s\n", ip_str, ntohs(client_addr.sin_port), recvBuff, (curr_tv.tv_sec - tvs[pkt_num].tv_sec) + (curr_tv.tv_usec - tvs[pkt_num].tv_usec)/ 1.0E6 );
+      printf("recved response from server (%s, %d): %s, pkt_num: %d, rtt: %.6lf s\n", ip_str, ntohs(client_addr.sin_port), recvBuff, pkt_num, (curr_tv.tv_sec - tvs[pkt_num].tv_sec) + (curr_tv.tv_usec - tvs[pkt_num].tv_usec)/ 1.0E6 );
     }
   }
 }

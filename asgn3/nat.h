@@ -25,6 +25,7 @@ struct nat_tb{
 
 typedef struct tokenbucket {
   unsigned int size;
-  unsigned int tokens;
+  int tokens;
   unsigned int rate;
+  struct timeval fill_base_tv;
 } TokenBucket;
