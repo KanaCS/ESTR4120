@@ -45,6 +45,8 @@ typedef struct ips{
 	struct ips* next;
 } Des_ips;
 
+Des_ips* sser;
+
 typedef struct element {
 	struct element* next;
 	unsigned int ip_addr;
@@ -53,6 +55,16 @@ typedef struct element {
 	double last_pkt_ts;
 	Des_ips *des_ip;
 } Element;
+
+void freeintrtb(){
+	Des_ips* tmp = sser->next;
+	sser->next = NULL;
+	while(tmp->next!=NULL){
+		Des_ips* befree = tmp;
+		tmp = tmp->next;
+		free(befree);
+	}
+}
 
 Element* update(Element** table, unsigned int ip_addr, unsigned int payload_size, double ts, unsigned int dip) { // return element *
 	unsigned int ind = ip_addr % 10000;
@@ -113,6 +125,19 @@ Element* update(Element** table, unsigned int ip_addr, unsigned int payload_size
 }
 
 unsigned int count_dstip(Element** table, unsigned int ip_addr){
+	//check if detected as intrusion
+	Des_ips* intrtb = sser;
+	while(intrtb->next != NULL){
+		if(intrtb->ip == ip_addr){
+			return 0;
+		}
+		intrtb = intrtb->next;
+	}
+	intrtb->next = malloc(sizeof(Des_ips));
+	intrtb = intrtb->next;
+	intrtb->ip = ip_addr;
+	intrtb->next = NULL;
+	//if not, found distinct dst host
 	unsigned int ind = ip_addr % 10000;
 	Des_ips* target;
 	target = table[ind]->des_ip;
@@ -277,6 +302,10 @@ int main(int argc, char** argv) {
     strcpy(filename, argv[5]);
 	epoch = epoch / 1000;
 
+	sser = malloc(sizeof(Des_ips));
+	sser->ip = 0;
+	sser->next = NULL;
+
 	unsigned int no_obs_pkts = 0;
 	unsigned int no_ipv4_pkts = 0;
 	unsigned int no_valid_pkts = 0;
@@ -352,6 +381,7 @@ int main(int argc, char** argv) {
 				}
 				current_epoch = (unsigned int)((pkt_ts - start_ts)/epoch);
 				clear_table(tables[current_epoch % 2]);
+				freeintrtb();
 			}
 
 			Element* elm = update(tables[current_epoch % 2], src_ip, ip_payload_size, pkt_ts, dst_ip);
