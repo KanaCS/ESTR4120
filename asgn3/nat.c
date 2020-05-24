@@ -47,6 +47,7 @@ void remove_expiry(){
   while(table!=NULL){
     unsigned long pkttime = (table->accesstv.tv_sec) * 1000 ;//+ (table->accesstv.tv_usec) / 1000 ;
     if (now - pkttime >= 10000){
+      pthread_mutex_lock(&buf_mutex);
       printf("drop a expiry pkt\n");
       printf("true? %d\n",table->next==NULL);
       NAT_TB* befree = NULL;
@@ -63,6 +64,7 @@ void remove_expiry(){
 	      porttb[befree->trans_port-10000] = 'n';
         free(befree);
       }
+      pthread_mutex_unlock(&buf_mutex);
     }
     else{
     	prev = table;
@@ -122,9 +124,9 @@ void forward_seconds(struct timeval *tv, double s) {
 void lazy_refill(struct timeval curr_tv, double fill_time) {
   double time_from_base = time_diff(curr_tv, bucket.fill_base_tv);
   int fill_tokens = time_from_base / fill_time;
-  if(bucket.tokens + fill_tokens >= 10) {
+  if(bucket.tokens + fill_tokens >= bucket.size) {
     // bucket already full, taking one away and set start filling
-    bucket.tokens = 10;
+    bucket.tokens = bucket.size;
     gettimeofday(&bucket.fill_base_tv, NULL);
   }
   else {
@@ -146,7 +148,7 @@ void get_token() { // return when get 1 token successfully
   printf("%d tokens in bucket\n", bucket.tokens);
   if(bucket.tokens > 0) {
     // have token
-    if(bucket.tokens < 10) {
+    if(bucket.tokens < bucket.size) {
       // lazy refill here
       gettimeofday(&curr_tv, NULL);
       lazy_refill(curr_tv, fill_time);
@@ -368,7 +370,7 @@ static int Callback(struct nfq_q_handle *myQueue, struct nfgenmsg *msg,
     u_short dst_port = ntohs(udph->dest);
     struct in_addr targetip;
     u_short targetport;
-    if(search_dst_port(dst_port, &targetip, &targetport, tv)==-1){
+    if(search_dst_port(dst_port, &targetip, &targetport, tv)!=1){
       printf("dst_port not in table, drop the pkt\n");
       rm_pkt_buf();
       return nfq_set_verdict(myQueue, id, NF_DROP, 0, NULL);
