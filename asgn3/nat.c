@@ -140,6 +140,7 @@ void get_token() { // return when get 1 token successfully
   int fill_time_sec = (int)fill_time;
   unsigned int fill_time_nsec = (fill_time - fill_time_sec) * 1E9;
 
+  int sleepy = 0;
   struct timeval curr_tv;
   pthread_mutex_lock(&bucket_mutex);
   printf("%d tokens in bucket\n", bucket.tokens);
@@ -169,13 +170,10 @@ void get_token() { // return when get 1 token successfully
       // need to wait for the next token
       tim1.tv_sec = (int)td;
       tim1.tv_nsec = (td-tim1.tv_sec) * 1E9;
+      sleepy = 1;
       forward_seconds(&bucket.fill_base_tv, fill_time);
       printf("curr: %ld.%ld, next token avaliable at %ld.%ld\n", curr_tv.tv_sec, curr_tv.tv_usec, next_token_tv.tv_sec, next_token_tv.tv_usec);
       printf("this pkt will wait %.6lf s for a token\n", td);
-      if(nanosleep(&tim1, &tim2) < 0) {
-        printf("ERROR: nanosleep() system call failed in get_token()!\n");
-        exit(1);
-      }
     }
     else {
       // already have token in bucket, lazy refill here
@@ -184,6 +182,12 @@ void get_token() { // return when get 1 token successfully
     }
   }
   pthread_mutex_unlock(&bucket_mutex);
+  if(sleepy == 1) {
+    if(nanosleep(&tim1, &tim2) < 0) {
+      printf("ERROR: nanosleep() system call failed in get_token()!\n");
+      exit(1);
+    }
+  }
 }
 
 // void *token_bucket_thread_run(void *arg) {
