@@ -48,7 +48,8 @@ typedef struct ips{
 typedef struct element {
 	struct element* next;
 	unsigned int ip_addr;
-	double cumu_byte_count; // in units of 10^6 Bytes
+	double cumu_byte_count; // in units of 1E6 Bytes
+	unsigned int pkt_cnt;
 	int report_status[3]; // {HH, HC, SS}
 	double last_pkt_ts;
 	Des_ips *des_ip;
@@ -62,6 +63,7 @@ Element* update(Element** table, unsigned int ip_addr, unsigned int payload_size
 		table[ind]->next = NULL;
 		table[ind]->ip_addr = ip_addr;
 		table[ind]->cumu_byte_count = payload_size/1.0E6;
+		table[ind]->pkt_cnt = 1;
 		table[ind]->report_status[0] = 0; table[ind]->report_status[1] = 0; table[ind]->report_status[2] = 0;
 		table[ind]->last_pkt_ts = ts;
 		table[ind]->des_ip = (Des_ips *) malloc(sizeof(Des_ips));
@@ -82,6 +84,7 @@ Element* update(Element** table, unsigned int ip_addr, unsigned int payload_size
 				target->next->next = NULL;
 				target->next->ip_addr = ip_addr;
 				target->next->cumu_byte_count = payload_size/1.0E6;
+				target->next->pkt_cnt = 1;
 				target->next->report_status[0] = 0; target->next->report_status[1] = 0; target->next->report_status[2] = 0;
 				target->next->last_pkt_ts = ts;
 				target->next->des_ip = (Des_ips *) malloc(sizeof(Des_ips));
@@ -92,6 +95,7 @@ Element* update(Element** table, unsigned int ip_addr, unsigned int payload_size
 		}
 		// entry found, update byte count
 		target->cumu_byte_count += payload_size/1.0E6;
+		target->pkt_cnt += 1;
 		// update last packet timestamp
 		target->last_pkt_ts = ts;
 		//update des_ip list
@@ -176,82 +180,27 @@ double abs_double(double d) {
 	}
 }
 
-// typedef struct reported_HC {
-// 	struct reported_HC* next;
-// 	unsigned int ip_addr;
-// } Reported_HC;
-
-// void free_helper_HC(Reported_HC* t) {
-// 	Reported_HC* head = t;
-// 	while(head != NULL) {
-// 		t = head->next;
-// 		free(head);
-// 		head = t;
-// 	}
-// }
-// int reported_as_HC(Reported_HC *head, unsigned int ip) {
-// 	while(head != NULL) {
-// 		if(head->ip_addr == ip) {
-// 			return 1; // already reported
-// 		}
-// 		head = head->next;
-// 	}
-// 	return 0; // not yet report
-// }
-
 void report_HC(double from_count, double to_count, unsigned int ip_addr, double ts, unsigned int epoch) {
 	printf("Epoch %d ", epoch);
 	printf("Time %.6lf: Heavy changer %.6lfMB -> %.6lfMB, ", ts, from_count, to_count);
 	print_ip(ip_addr);
 	printf("\n");
-	// tail->next = (Reported_HC *)malloc(sizeof(Reported_HC));
-	// tail->next->next = NULL;
-	// tail->next->ip_addr = ip_addr;
-	// return tail->next;
 }
 
-// void check_HC(Element **old_table, Element **new_table, Reported_HC *reported, double hc_thresh, unsigned int current_epoch, double current_epoch_finish_ts, int type) {
 void check_HC(Element **old_table, Element **new_table, double hc_thresh, unsigned int current_epoch, double current_epoch_finish_ts) {
-	// type == 0 means that old_table is epoch-1, new_table is epoch
-	// type == 1 means that old_table is epoch, new_table is epoch-1
-
 	// possible cases:
-	// 0 MB -> BIG MB
-	// BIG MB -> 0 MB
 	// delta > BIG MB
 	int j = 0;
 	Element *t=NULL;
 	Element *t_prev=NULL;
-	// find tail in reported
-	// Reported_HC *tail=reported;
-	// while(tail->next != NULL) {
-	// 	tail = tail->next;
-	// }
 	for(j = 0; j < 10000; j++) {
 		if(new_table[j] != NULL) {
 			t = new_table[j];
-			// while(t != NULL && reported_as_HC(reported, t->ip_addr) == 0) {
 			while(t != NULL) {
 				t_prev = query(old_table, t->ip_addr);
-				// if(t_prev == NULL) { // entry exist in new_table but not old_table, possible 0 MB -> BIG MB when type == 0 and BIG MB -> 0 MB when type == 1
-				// 	if(t->cumu_byte_count > hc_thresh) {
-				// 		if(type == 0) { // 0 MB -> BIG MB
-				// 			tail = report_HC(0.0, t->cumu_byte_count, t->ip_addr, t->last_pkt_ts, current_epoch, tail);
-				// 		}
-				// 		else { // BIG MB -> 0 MB 
-				// 			tail = report_HC(0.0, t->cumu_byte_count, t->ip_addr, current_epoch_finish_ts, current_epoch, tail);
-				// 		}
-				// 	}
-				// }
 				if(t_prev != NULL) {
 					// host exist in t and t_prev, check | t - t_prev | > threshold
 					if(abs_double(t->cumu_byte_count - t_prev->cumu_byte_count) >= hc_thresh) {
-						// if(type == 0) {
-						// 	report_HC(t_prev->cumu_byte_count, t->cumu_byte_count, t->ip_addr, t->last_pkt_ts, current_epoch);
-						// }
-						// else {
-						// 	report_HC(t->cumu_byte_count, t_prev->cumu_byte_count, t->ip_addr, t->last_pkt_ts, current_epoch);
-						// }
 						report_HC(t_prev->cumu_byte_count, t->cumu_byte_count, t->ip_addr, t->last_pkt_ts, current_epoch);
 					}
 				}
@@ -312,78 +261,72 @@ int main(int argc, char** argv) {
 		fprintf(stderr, "ERR: cannot open %s (%s)\n", filename, errbuf);
 		exit(-1);
 	}
-
 	while ((pkt = pcap_next(pcap, &hdr)) != NULL) {
-			// get the timestamp
+		// get the timestamp
 
-			pkt_ts = (double)hdr.ts.tv_usec / 1000000 + hdr.ts.tv_sec;
-			if(no_obs_pkts == 0) {
-				start_ts = pkt_ts;
-			}
+		pkt_ts = (double)hdr.ts.tv_usec / 1000000 + hdr.ts.tv_sec;
+		if(no_obs_pkts == 0) {
+			start_ts = pkt_ts;
+		}
 
-			ip_hdr = (struct ip*)pkt;
-			
-			//get stat
-			no_obs_pkts += 1;
-			if((int)ip_hdr->ip_v!=4){
-				continue;
-			}
-			no_ipv4_pkts += 1;
-
-			if(ip_hdr->ip_sum == checksum((unsigned char*)ip_hdr)){
-				no_valid_pkts += 1;
-			}
-
-			ip_payload_size = ntohs(ip_hdr->ip_len) - ((unsigned int)(ip_hdr->ip_hl) << 2);
-			total_payload_size += ip_payload_size;
-			// IP addresses are in network-byte order	
-			src_ip = ip_hdr->ip_src.s_addr;
-			dst_ip = ip_hdr->ip_dst.s_addr;
-			if( (unsigned int)((pkt_ts - start_ts)/epoch) > current_epoch) {
-				// start of new epoch = end of current_epoch
-				// check heavy changer here
-				if(current_epoch > 0) {
-					// Reported_HC *head = (Reported_HC *) malloc(sizeof(Reported_HC));
-					// head->next = NULL;
-					// head->ip_addr = 0;
-					check_HC(tables[(current_epoch-1)%2], tables[current_epoch%2], hc_thresh, current_epoch, start_ts + (current_epoch+1)*epoch);
-					// check_HC(tables[current_epoch%2], tables[(current_epoch-1)%2], head, hc_thresh, current_epoch, start_ts + (current_epoch+1)*epoch, 1);
-					// free_helper_HC(head);
-				}
-				current_epoch = (unsigned int)((pkt_ts - start_ts)/epoch);
-				clear_table(tables[current_epoch % 2]);
-			}
-
-			Element* elm = update(tables[current_epoch % 2], src_ip, ip_payload_size, pkt_ts, dst_ip);
-			// print_ip(src_ip);
-			// printf(": %.6lf MB\n", elm->cumu_byte_count );
-			if(elm->cumu_byte_count > hh_thresh && elm->report_status[0] == 0) {
-				printf("Epoch %d ", current_epoch);
-				printf("pkt %d ", no_obs_pkts);
-				printf("Time %.6lf: Heavy hitter of %.6lfMB, ", pkt_ts, elm->cumu_byte_count);
-				print_ip(src_ip);
-				printf("\n");
-				elm->report_status[0] = 1;
-			}
-			
-			unsigned int no_des_ip = count_dstip(tables[current_epoch % 2], src_ip);
-			if(no_des_ip > ss_thresh){
-				printf("Epoch %d ", current_epoch);
-				printf("pkt %d ", no_obs_pkts);
-				printf("Time %.6lf: Superspreader of %u, ", pkt_ts, no_des_ip);
-				print_ip(src_ip);
-				printf("\n");
-			}
-			if (ip_hdr->ip_p == IPPROTO_TCP) {
-				no_tcp_pkts += 1;
-			}
-			else if (ip_hdr->ip_p == IPPROTO_UDP) {
-				no_udp_pkts += 1;
-			} 
-			else if (ip_hdr->ip_p == IPPROTO_ICMP) {
-				no_icmp_pkts += 1;
-			}
+		ip_hdr = (struct ip*)pkt;
 		
+		//get stat
+		no_obs_pkts += 1;
+		if((int)ip_hdr->ip_v!=4){
+			continue;
+		}
+		no_ipv4_pkts += 1;
+
+		if(ip_hdr->ip_sum == checksum((unsigned char*)ip_hdr)){
+			no_valid_pkts += 1;
+		}
+
+		ip_payload_size = ntohs(ip_hdr->ip_len) - ((unsigned int)(ip_hdr->ip_hl) << 2);
+		total_payload_size += ip_payload_size;
+		// IP addresses are in network-byte order	
+		src_ip = ip_hdr->ip_src.s_addr;
+		dst_ip = ip_hdr->ip_dst.s_addr;
+		if( (unsigned int)((pkt_ts - start_ts)/epoch) > current_epoch) {
+			// start of new epoch = end of current_epoch
+			// check heavy changer here
+			if(current_epoch > 0) {
+				check_HC(tables[(current_epoch-1)%2], tables[current_epoch%2], hc_thresh, current_epoch, start_ts + (current_epoch+1)*epoch);
+			}
+			current_epoch = (unsigned int)((pkt_ts - start_ts)/epoch);
+			clear_table(tables[current_epoch % 2]);
+		}
+
+		Element* elm = update(tables[current_epoch % 2], src_ip, ip_payload_size, pkt_ts, dst_ip);
+
+		// print_ip(src_ip);
+		// printf(": %.6lf MB\n", elm->cumu_byte_count );
+		if(elm->cumu_byte_count > hh_thresh && elm->report_status[0] == 0) {
+			printf("Epoch %d ", current_epoch);
+			printf("pkt %d ", no_obs_pkts);
+			printf("Time %.6lf: Heavy hitter of %.6lfMB, %u pkts, ", pkt_ts, elm->cumu_byte_count, elm->pkt_cnt);
+			print_ip(src_ip);
+			printf("\n");
+			elm->report_status[0] = 1;
+		}
+		
+		unsigned int no_des_ip = count_dstip(tables[current_epoch % 2], src_ip);
+		if(no_des_ip > ss_thresh){
+			printf("Epoch %d ", current_epoch);
+			printf("pkt %d ", no_obs_pkts);
+			printf("Time %.6lf: Superspreader of %u, ", pkt_ts, no_des_ip);
+			print_ip(src_ip);
+			printf("\n");
+		}
+		if (ip_hdr->ip_p == IPPROTO_TCP) {
+			no_tcp_pkts += 1;
+		}
+		else if (ip_hdr->ip_p == IPPROTO_UDP) {
+			no_udp_pkts += 1;
+		} 
+		else if (ip_hdr->ip_p == IPPROTO_ICMP) {
+			no_icmp_pkts += 1;
+		}
 	}
 	//print stat
 	printf("the total number of observed packets: %d\n",no_obs_pkts);
