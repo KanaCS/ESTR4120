@@ -357,7 +357,7 @@ static int Callback(struct nfq_q_handle *myQueue, struct nfgenmsg *msg,
     iph->saddr = htonl(natip.s_addr);
     udph->check = udp_checksum(pktData);
     iph->check = ip_checksum(pktData);
-    // printNAT();
+    printNAT();
    } 
   else {
     printf("inbound\n");
@@ -373,7 +373,7 @@ static int Callback(struct nfq_q_handle *myQueue, struct nfgenmsg *msg,
     udph->dest = htons(targetport);
     udph->check = udp_checksum(pktData);
     iph->check = ip_checksum(pktData);
-    // printNAT();
+    printNAT();
   }
 
   // printf("\n");
