@@ -172,7 +172,7 @@ void get_token() { // return when get 1 token successfully
       tim1.tv_nsec = (td-tim1.tv_sec) * 1E9;
       sleepy = 1;
       forward_seconds(&bucket.fill_base_tv, fill_time);
-      printf("curr: %ld.%ld, next token avaliable at %ld.%ld\n", curr_tv.tv_sec, curr_tv.tv_usec, next_token_tv.tv_sec, next_token_tv.tv_usec);
+      // printf("curr: %ld.%ld, next token avaliable at %ld.%ld\n", curr_tv.tv_sec, curr_tv.tv_usec, next_token_tv.tv_sec, next_token_tv.tv_usec);
       printf("this pkt will wait %.6lf s for a token\n", td);
     }
     else {
