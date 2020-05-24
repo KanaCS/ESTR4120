@@ -47,6 +47,7 @@ void remove_expiry(){
   while(table!=NULL){
     unsigned long pkttime = (table->accesstv.tv_sec) * 1000 ;//+ (table->accesstv.tv_usec) / 1000 ;
     if (now - pkttime >= 10000){
+      pthread_mutex_lock(&buf_mutex);
       printf("drop a expiry pkt\n");
       printf("true? %d\n",table->next==NULL);
       NAT_TB* befree = NULL;
@@ -63,6 +64,7 @@ void remove_expiry(){
 	      porttb[befree->trans_port-10000] = 'n';
         free(befree);
       }
+      pthread_mutex_unlock(&buf_mutex);
     }
     else{
     	prev = table;
