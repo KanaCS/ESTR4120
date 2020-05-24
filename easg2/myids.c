@@ -133,6 +133,9 @@ unsigned int count_dstip(Element** table, unsigned int ip_addr){
 		}
 		intrtb = intrtb->next;
 	}
+	if(intrtb->ip == ip_addr){
+		return 0;
+	}
 	intrtb->next = malloc(sizeof(Des_ips));
 	intrtb = intrtb->next;
 	intrtb->ip = ip_addr;
