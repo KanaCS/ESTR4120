@@ -31,13 +31,4 @@ echo "AAAA" | nc -uv 137.189.88.153 10100 //vmb or vmc
  **check if any running nat process:**
 
  ps aux | grep -i nat
- 
-# TO DO
-- [X] Translation expiry requiremen
-- [X] Inbound & Outbound
-- [ ] ICMP error translation (what actually needed to be done lol cannot understand spec
-- [ ] DEBUG Inbound (half done, not yet check delivery if package //dont know how to check QAQ 
-- [ ] DEBUG Outbound 
-- [ ] Token bucket: hv not use it yet in forwarding of pkt
-- [ ] Threads
 
